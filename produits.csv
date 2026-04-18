@@ -5,28 +5,25 @@ code,nom,categorie,emb,ingredients,sucre,regime,porc
 3250391245021,Crème Dessert Netto,Dessert,FR 38.408.002 CE,lait entier 73% sucre cacao cacao maigre,14.5,Végétarien,Non
 3038350333300,Pates Panzani Coquillettes,Féculent,FR 13.012.001 CE,semoule de ble dur de qualite superieure,0.5,Vegan,Non
 3250391589415,Pates Eco+ Coquillettes,Féculent,FR 13.012.001 CE,semoule de ble dur de qualite superieure,0.5,Vegan,Non
-3250390001234,Pates Saint Eloi Coquillettes,Féculent,FR 13.012.001 CE,semoule de ble dur,0.5,Vegan,Non
 3168930010214,Haricots Verts Cassegrain,Légume,FR 29.103.001 CE,haricots verts extra-fins sel eau,1.5,Vegan,Non
 3250390001239,Haricots Verts Saint Eloi,Légume,FR 29.103.001 CE,haricots verts extra-fins sel eau,1.4,Vegan,Non
-3250392124567,Haricots Verts Notre Jardin,Légume,FR 29.103.001 CE,haricots verts extra-fins sel,1.5,Vegan,Non
 3011993114550,Pizza Royale Buitoni,Pizza,FR 59.123.001 CE,pate sauce tomate jambon fromage champignons,3.2,Omnivore,Oui
 3250390705540,Pizza Royale Turini,Pizza,FR 59.123.001 CE,pate sauce tomate jambon fromage champignons,3.1,Omnivore,Oui
-3250390012458,Pizza Royale Top Budget,Pizza,FR 59.123.001 CE,pate sauce tomate epaule porc fromage,3.5,Omnivore,Oui
-5449000000996,Coca-Cola Classique,Boisson,FR 92.037.001 CE,eau gazéifiée sucre colorant caramel acide phosphorique,10.6,Vegan,Non
-3250391544438,Look Cola,Boisson,FR 92.037.001 CE,eau gazéifiée sucre colorant caramel acide phosphorique,10.2,Vegan,Non
-3250392145632,Freeway Cola,Boisson,FR 92.037.001 CE,eau gazéifiée sucre colorant caramel acide phosphorique,10.5,Vegan,Non
+5449000000996,Coca-Cola Classique,Soda,FR 92.037.001 CE,eau gazéifiée sucre colorant caramel acide phosphorique,10.6,Vegan,Non
+3250391544438,Look Cola,Soda,FR 92.037.001 CE,eau gazéifiée sucre colorant caramel acide phosphorique,10.2,Vegan,Non
+3250392145632,Freeway Cola,Soda,FR 92.037.001 CE,eau gazéifiée sucre colorant caramel acide phosphorique,10.5,Vegan,Non
 3021690018514,Rillettes Bordeau Chesnel,Rillettes,FR 72.300.001 CE,viande de porc gras de porc sel poivre,0.5,Omnivore,Oui
 3250390015502,Rillettes Saint Azay,Rillettes,FR 72.300.001 CE,viande de porc gras de porc sel,0.4,Omnivore,Oui
-3250391114521,Rillettes Nos Regions,Rillettes,FR 72.300.001 CE,viande de porc gras de porc sel poivre,0.5,Omnivore,Oui
 3046920022606,Chocolat Lindt 70%,Chocolat,DE 12.345.001 CE,pate de cacao sucre beurre de cacao vanille,29.0,Vegan,Non
 3250390002145,Chocolat Ivoria 70%,Chocolat,DE 12.345.001 CE,pate de cacao sucre beurre de cacao vanille,28.5,Vegan,Non
 3017620422003,Nutella Ferrero,Pâte à tartiner,IT 01.002.003 CE,sucre huile de palme noisettes lait cacao,56.3,Végétarien,Non
 3250391456321,Pâte Tartiner Choco Nussa,Pâte à tartiner,IT 01.002.003 CE,sucre huile de palme noisettes lait cacao,56.1,Végétarien,Non
-3155250349793,Yaourt Nature Danone,Laitage,FR 12.345.678 CE,lait entier ferments lactiques,4.7,Végétarien,Non
-3250390154872,Yaourt Nature Envia,Laitage,FR 12.345.678 CE,lait entier ferments lactiques,4.7,Végétarien,Non
 3033710001187,Beurre President Doux,Beurre,FR 53.054.005 CE,creme ferments lactiques,0.5,Végétarien,Non
 3250390124578,Beurre Patatur,Beurre,FR 53.054.005 CE,creme ferments lactiques,0.5,Végétarien,Non
 3017230000061,Lait Demi-Ecreme Lactel,Lait,FR 35.327.001 CE,lait demi-ecreme vitamine d,4.8,Végétarien,Non
 3250390001478,Lait Demi-Ecreme J'aime le lait,Lait,FR 35.327.001 CE,lait demi-ecreme vitamine d,4.8,Végétarien,Non
-3124480001579,Jus de Pomme Tropicana,Boisson,FR 45.147.001 CE,pur jus de pomme presse,10.2,Vegan,Non
-3250391500456,Jus de Pomme Paquito,Boisson,FR 45.147.001 CE,pur jus de pomme presse,10.1,Vegan,Non
+3124480001579,Jus de Pomme Tropicana,Jus de fruits,FR 45.147.001 CE,pur jus de pomme presse,10.2,Vegan,Non
+3250391500456,Jus de Pomme Paquito,Jus de fruits,FR 45.147.001 CE,pur jus de pomme presse,10.1,Vegan,Non
+3068320055008,Jus d'orange Joker,Jus de fruits,FR 45.147.001 CE,pur jus d orange avec pulpe,9.0,Vegan,Non
+3057640316413,Petit Beurre Lu,Biscuits,FR 44.001.001 CE,farine de ble sucre beurre 12% lait sel,24.0,Végétarien,Non
+3250390145214,Petit Beurre P'tit prix,Biscuits,FR 44.001.001 CE,farine de ble sucre beurre 10% lait sel,25.0,Végétarien,Non
