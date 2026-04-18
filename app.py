@@ -47,15 +47,27 @@ if submit:
         if not produit_scanne.empty:
             p = produit_scanne.iloc[0]
             
+          if not produit_scanne.empty:
+            p = produit_scanne.iloc[0]
+            
             # --- AFFICHAGE PRODUIT PRINCIPAL ---
             st.success(f"### {p['nom']}")
             
+            # Métriques
             col1, col2, col3 = st.columns(3)
             col1.metric("Sucre (100g)", f"{p['sucre']}g")
             col2.metric("Régime", p['regime'])
             col3.metric("Porc", "Oui 🐷" if p['porc'] == "Oui" else "Non ❌")
             
+            # NOUVEAU : Affichage de la recette du produit recherché
+            with st.expander("📜 Voir la recette complète"):
+                st.write(f"**Ingrédients :**")
+                st.write(p['ingredients'])
+            
             st.info(f"🏭 **Usine détectée :** {p['emb']}")
+            
+            # --- RECHERCHE DES CLONES ET ALTERNATIVES ---
+            # (Le reste de ton code pour les clones et catégories suit ici...)
             # --- DÉBUT DE LA LOGIQUE DE RECHERCHE ÉTENDUE ---
         if not produit_scanne.empty:
             p = produit_scanne.iloc[0]
