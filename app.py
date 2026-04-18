@@ -56,16 +56,39 @@ if submit:
             col3.metric("Porc", "Oui 🐷" if p['porc'] == "Oui" else "Non ❌")
             
             st.info(f"🏭 **Usine détectée :** {p['emb']}")
-            
-            # --- RECHERCHE DES CLONES ---
+            # --- DÉBUT DE LA LOGIQUE DE RECHERCHE ÉTENDUE ---
+        if not produit_scanne.empty:
+            p = produit_scanne.iloc[0]
+            # ... (tes métriques de sucre, régime, etc. restent ici)
+
+            # 1. Recherche des CLONES (Même usine)
             clones = df[(df['emb'] == p['emb']) & (df['nom'] != p['nom'])]
             
+            # 2. Recherche des ALTERNATIVES (Même catégorie, usine différente)
+            alternatives = df[(df['categorie'] == p['categorie']) & (df['emb'] != p['emb']) & (df['nom'] != p['nom'])]
+
+            # --- AFFICHAGE SECTION 1 : CLONES ---
             if not clones.empty:
                 st.write("---")
-                st.subheader(f"💡 {len(clones)} Clones trouvés pour cette usine")
-                
+                st.subheader(f"🏭 {len(clones)} Clones trouvés (Même usine)")
                 for _, c in clones.iterrows():
                     score = calculer_score(p['ingredients'], c['ingredients'])
+                    with st.expander(f"✅ {c['nom']} — Correspondance : {score}%"):
+                        st.markdown(f"**Analyse :** Même provenance, recette identique à {score}%")
+                        diff_html = comparer_listes_visuel(p['ingredients'], c['ingredients'])
+                        st.markdown(f"<div style='padding:10px; border:1px solid #ddd; border-radius:5px;'>{diff_html}</div>", unsafe_allow_html=True)
+
+            # --- AFFICHAGE SECTION 2 : ALTERNATIVES ---
+            if not alternatives.empty:
+                st.write("---")
+                st.subheader(f"🛒 {len(alternatives)} Autres produits de la catégorie {p['categorie']}")
+                for _, a in alternatives.iterrows():
+                    score = calculer_score(p['ingredients'], a['ingredients'])
+                    with st.expander(f"🔍 {a['nom']} — Similitude : {score}%"):
+                        st.write(f"**Note :** Ce produit vient d'une usine différente ({a['emb']})")
+                        diff_html = comparer_listes_visuel(p['ingredients'], a['ingredients'])
+                        st.markdown(f"<div style='padding:10px; border:1px solid #ddd; border-radius:5px;'>{diff_html}</div>", unsafe_allow_html=True)
+                        st.write(f"📊 Sucre : {a['sucre']}g")
                     
                     # Couleur du score
                     color = "green" if score > 90 else "orange"
