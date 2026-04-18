@@ -1,12 +1,15 @@
 import streamlit as st
 import pandas as pd
-import requests
 import difflib
 
-# 1. Fonction de comparaison
-def comparer_listes(texte_ref, texte_comp):
-    if not texte_ref or not texte_comp:
-        return "Données indisponibles."
+# 1. FONCTIONS DE CALCUL (Le "Cerveau" de l'app)
+def calculer_score(ing1, ing2):
+    """Calcule le % de similitude entre deux listes d'ingrédients"""
+    score = difflib.SequenceMatcher(None, str(ing1).lower(), str(ing2).lower()).ratio()
+    return int(score * 100)
+
+def comparer_listes_visuel(texte_ref, texte_comp):
+    """Surligne les différences en rouge"""
     ref_words = str(texte_ref).lower().replace(',', '').split()
     comp_words = str(texte_comp).lower().replace(',', '').split()
     diff_html = ""
@@ -14,43 +17,64 @@ def comparer_listes(texte_ref, texte_comp):
         if word in ref_words:
             diff_html += f"{word} "
         else:
-            diff_html += f"<span style='color:red; font-weight:bold;'>{word}</span> "
+            diff_html += f"<span style='color:red; font-weight:bold; background-color: #ffecec;'>{word}</span> "
     return diff_html
 
-# 2. Interface
-st.title("🔍 CloneDetector Pro")
+# 2. CONFIGURATION INTERFACE
+st.set_page_config(page_title="CloneDetector Pro", page_icon="🔍")
+st.title("🔬 CloneDetector Pro")
 
 with st.form("search"):
-    barcode = st.text_input("Code-barres :", value="3021690018514")
-    submit = st.form_submit_button("Lancer la recherche")
+    barcode = st.text_input("Scannez un code-barres :", value="3021690018514")
+    submit = st.form_submit_button("Lancer l'analyse complète 🚀")
 
 if submit:
     try:
-        # On charge le fichier une seule fois au début
+        # Chargement des données
         df = pd.read_csv("produits.csv", dtype={'code': str})
+        produit_scanne = df[df['code'] == barcode.strip()]
         
-        # On cherche le produit scanné
-        produit = df[df['code'] == barcode.strip()]
-        
-        if not produit.empty:
-            p = produit.iloc[0]
-            st.success(f"### Produit trouvé : {p['nom']}")
-            st.info(f"🏭 Usine : {p['emb']}")
+        if not produit_scanne.empty:
+            p = produit_scanne.iloc[0]
             
-            # Recherche des clones (même usine, nom différent)
+            # --- AFFICHAGE PRODUIT PRINCIPAL ---
+            st.success(f"### {p['nom']}")
+            
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Sucre (100g)", f"{p['sucre']}g")
+            col2.metric("Régime", p['regime'])
+            col3.metric("Porc", "Oui 🐷" if p['porc'] == "Oui" else "Non ❌")
+            
+            st.info(f"🏭 **Usine détectée :** {p['emb']}")
+            
+            # --- RECHERCHE DES CLONES ---
             clones = df[(df['emb'] == p['emb']) & (df['nom'] != p['nom'])]
             
             if not clones.empty:
-                st.write("### 💡 Clones potentiels trouvés :")
+                st.write("---")
+                st.subheader(f"💡 {len(clones)} Clones trouvés pour cette usine")
+                
                 for _, c in clones.iterrows():
-                    with st.expander(f"✅ {c['nom']}"):
-                        st.write("**Comparaison des ingrédients :**")
-                        html_diff = comparer_listes(p['ingredients'], c['ingredients'])
-                        st.markdown(f"<div style='padding:10px; border:1px solid #ddd;'>{html_diff}</div>", unsafe_allow_html=True)
+                    score = calculer_score(p['ingredients'], c['ingredients'])
+                    
+                    # Couleur du score
+                    color = "green" if score > 90 else "orange"
+                    
+                    with st.expander(f"✅ {c['nom']} — Correspondance : {score}%"):
+                        st.markdown(f"**Fiabilité de la recette :** <span style='color:{color}; font-weight:bold;'>{score}%</span>", unsafe_allow_html=True)
+                        
+                        # Comparaison visuelle
+                        st.write("**Analyse des différences :**")
+                        diff_html = comparer_listes_visuel(p['ingredients'], c['ingredients'])
+                        st.markdown(f"<div style='padding:10px; border:1px solid #ddd; border-radius:5px; background-color:white;'>{diff_html}</div>", unsafe_allow_html=True)
+                        
+                        # Infos secondaires
+                        st.write(f"📊 **Sucre :** {c['sucre']}g (Différence : {round(c['sucre'] - p['sucre'], 1)}g)")
             else:
-                st.warning("Aucun clone trouvé pour cette usine.")
+                st.warning("Aucun clone trouvé dans la base pour cette usine.")
+                
         else:
-            st.error("Produit inconnu dans la base locale.")
+            st.error("Désolé, ce code-barres n'est pas encore dans notre base locale.")
             
     except Exception as e:
-        st.error(f"Erreur technique : {e}")
+        st.error(f"Erreur lors de l'analyse : {e}")
