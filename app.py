@@ -1,75 +1,68 @@
 import streamlit as st
 import requests
+import pandas as pd
 import difflib
 
-# 1. FONCTIONS TECHNIQUES
-def comparer_listes(texte_ref, texte_comp):
-    if not texte_ref or not texte_comp:
-        return "Données indisponibles."
-    ref_words = str(texte_ref).lower().replace(',', '').replace('.', '').split()
-    comp_words = str(texte_comp).lower().replace(',', '').replace('.', '').split()
-    diff_html = ""
-    for word in comp_words:
-        if word in ref_words:
-            diff_html += f"{word} "
-        else:
-            diff_html += f"<span style='color:red; font-weight:bold; background-color: #ffecec;'>{word}</span> "
-    return diff_html
+st.set_page_config(page_title="CloneDetector Pro", layout="centered")
 
+# --- FONCTION API ROBUSTE ---
 def fetch_off_data(barcode):
+    barcode = str(barcode).strip()
+    # URL de l'API Open Food Facts
     url = f"https://world.openfoodfacts.org/api/v2/product/{barcode}.json"
     try:
-        res = requests.get(url, timeout=5).json()
-        if res.get('status') == 1:
-            p = res['product']
-            return {
-                "nom": p.get('product_name', 'Inconnu'),
-                "emb": p.get('manufacturing_places_re_authoritative', p.get('emb_codes', '')),
-                "ingredients": p.get('ingredients_text_fr', p.get('ingredients_text', '')),
-                "categorie": p.get('categories_tags', [None])[0]
-            }
-    except: return None
+        # On ajoute un timeout pour éviter que l'app freeze
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('status') == 1:
+                p = data['product']
+                return {
+                    "nom": p.get('product_name_fr') or p.get('product_name') or "Inconnu",
+                    "emb": p.get('manufacturing_places_re_authoritative') or p.get('emb_codes') or p.get('manufacturing_places'),
+                    "ingredients": p.get('ingredients_text_fr') or p.get('ingredients_text') or "",
+                    "categorie": p.get('categories_tags', [None])[0]
+                }
+    except Exception as e:
+        st.sidebar.error(f"Erreur API : {e}")
     return None
 
-def find_clones_api(emb_code, category_tag):
-    if not emb_code: return []
-    clean_emb = str(emb_code).split(',')[0].strip()
-    url = f"https://world.openfoodfacts.org/cgi/search.pl?action=process&manufacturing_places_tags={clean_emb}&categories_tags={category_tag}&json=true"
-    try:
-        res = requests.get(url, timeout=5).json()
-        return res.get('products', [])
-    except: return []
-
-# 2. INTERFACE ET FORMULAIRE
-st.title("🔬 CloneDetector Pro")
+# --- INTERFACE ---
+st.title("🔍 CloneDetector Pro")
 
 with st.form("search_form"):
-    barcode = st.text_input("Scannez ou entrez un code-barres :", placeholder="Ex: 3021690018514")
-    submit_button = st.form_submit_button("Lancer la recherche 🔍")
+    barcode_input = st.text_input("Scannez ou entrez un code-barres :", value="3021690018514")
+    submit = st.form_submit_button("Lancer la recherche 🚀")
 
-if submit_button and barcode:
-    # 1. On tente le Web (OFF)
-    data = fetch_off_data(barcode)
+if submit:
+    # 1. Tentative Web
+    with st.spinner("Recherche sur Open Food Facts..."):
+        result = fetch_off_data(barcode_input)
     
-    # 2. Si le Web échoue, on regarde dans ton CSV local
-    if not data:
+    # 2. Si échec Web, tentative Local
+    if not result:
+        st.warning("Produit non trouvé sur le Web. Vérification du fichier local...")
         try:
-            df = pd.read_csv("produits.csv")
-            # On cherche le code dans le CSV (on convertit en string pour être sûr)
-            row = df[df['code'].astype(str) == str(barcode)]
+            df = pd.read_csv("produits.csv", dtype={'code': str})
+            row = df[df['code'] == str(barcode_input).strip()]
             if not row.empty:
-                data = {
+                result = {
                     "nom": row.iloc[0]['nom'],
                     "emb": row.iloc[0]['emb'],
                     "ingredients": row.iloc[0]['ingredients'],
                     "categorie": row.iloc[0]['categorie']
                 }
-        except:
-            pass
+        except Exception as e:
+            st.error(f"Erreur lecture CSV : {e}")
 
-    # 3. Affichage final
-    if data:
-        st.subheader(f"Produit : {data['nom']}")
-        # ... (le reste de ton code pour les clones)
+    # 3. Affichage des résultats
+    if result:
+        st.success(f"### Produit trouvé : {result['nom']}")
+        if result['emb']:
+            st.info(f"🏭 Code Usine (EMB) : {result['emb']}")
+            # Ici on pourrait ajouter la logique des clones
+        else:
+            st.warning("⚠️ Ce produit n'a pas de code usine enregistré.")
     else:
-        st.error("Ce produit est inconnu au bataillon (Web et local).")
+        st.error("❌ Ce produit est inconnu au bataillon (Web et local).")
+        st.info("Astuce : Vérifiez que votre fichier 'requirements.txt' contient bien 'requests' et 'pandas'.")
