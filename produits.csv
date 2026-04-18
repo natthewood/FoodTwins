@@ -18,3 +18,15 @@ code,nom,categorie,emb,ingredients,sucre,regime,porc
 3021690018514,Rillettes Bordeau Chesnel,Rillettes,FR 72.300.001 CE,viande de porc gras de porc sel poivre,0.5,Omnivore,Oui
 3250390015502,Rillettes Saint Azay,Rillettes,FR 72.300.001 CE,viande de porc gras de porc sel,0.4,Omnivore,Oui
 3250391114521,Rillettes Nos Regions,Rillettes,FR 72.300.001 CE,viande de porc gras de porc sel poivre,0.5,Omnivore,Oui
+3046920022606,Chocolat Lindt 70%,Chocolat,DE 12.345.001 CE,pate de cacao sucre beurre de cacao vanille,29.0,Vegan,Non
+3250390002145,Chocolat Ivoria 70%,Chocolat,DE 12.345.001 CE,pate de cacao sucre beurre de cacao vanille,28.5,Vegan,Non
+3017620422003,Nutella Ferrero,Pâte à tartiner,IT 01.002.003 CE,sucre huile de palme noisettes lait cacao,56.3,Végétarien,Non
+3250391456321,Pâte Tartiner Choco Nussa,Pâte à tartiner,IT 01.002.003 CE,sucre huile de palme noisettes lait cacao,56.1,Végétarien,Non
+3155250349793,Yaourt Nature Danone,Laitage,FR 12.345.678 CE,lait entier ferments lactiques,4.7,Végétarien,Non
+3250390154872,Yaourt Nature Envia,Laitage,FR 12.345.678 CE,lait entier ferments lactiques,4.7,Végétarien,Non
+3033710001187,Beurre President Doux,Beurre,FR 53.054.005 CE,creme ferments lactiques,0.5,Végétarien,Non
+3250390124578,Beurre Patatur,Beurre,FR 53.054.005 CE,creme ferments lactiques,0.5,Végétarien,Non
+3017230000061,Lait Demi-Ecreme Lactel,Lait,FR 35.327.001 CE,lait demi-ecreme vitamine d,4.8,Végétarien,Non
+3250390001478,Lait Demi-Ecreme J'aime le lait,Lait,FR 35.327.001 CE,lait demi-ecreme vitamine d,4.8,Végétarien,Non
+3124480001579,Jus de Pomme Tropicana,Boisson,FR 45.147.001 CE,pur jus de pomme presse,10.2,Vegan,Non
+3250391500456,Jus de Pomme Paquito,Boisson,FR 45.147.001 CE,pur jus de pomme presse,10.1,Vegan,Non
