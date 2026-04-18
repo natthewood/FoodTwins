@@ -58,11 +58,29 @@ if submit:
     # 3. Affichage des résultats
     if result:
         st.success(f"### Produit trouvé : {result['nom']}")
+        
         if result['emb']:
             st.info(f"🏭 Code Usine (EMB) : {result['emb']}")
-            # Ici on pourrait ajouter la logique des clones
+            
+            # --- LOGIQUE DE RECHERCHE DES CLONES DANS LE CSV ---
+            try:
+                df = pd.read_csv("produits.csv", dtype={'code': str})
+                # On cherche les produits qui ont le MEME code EMB mais un NOM différent
+                clones = df[(df['emb'] == result['emb']) & (df['nom'] != result['nom'])]
+                
+                if not clones.empty:
+                    st.write("### 💡 Clones potentiels trouvés dans l'usine :")
+                    for _, clone in clones.iterrows():
+                        with st.expander(f"✅ {clone['nom']}"):
+                            st.write(f"**Catégorie :** {clone['categorie']}")
+                            # Comparaison des ingrédients
+                            diff = comparer_listes(result['ingredients'], clone['ingredients'])
+                            st.markdown(f"<div style='padding:10px; border:1px solid #ddd; border-radius:5px;'>{diff}</div>", unsafe_allow_html=True)
+                else:
+                    st.warning("Aucun clone trouvé pour cette usine dans la base locale.")
+            except:
+                st.error("Impossible de chercher les clones (Erreur fichier).")
         else:
             st.warning("⚠️ Ce produit n'a pas de code usine enregistré.")
     else:
-        st.error("❌ Ce produit est inconnu au bataillon (Web et local).")
-        st.info("Astuce : Vérifiez que votre fichier 'requirements.txt' contient bien 'requests' et 'pandas'.")
+        st.error("❌ Ce produit est inconnu au bataillon.")
