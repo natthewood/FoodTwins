@@ -48,28 +48,28 @@ with st.form("search_form"):
     submit_button = st.form_submit_button("Lancer la recherche 🔍")
 
 if submit_button and barcode:
+    # 1. On tente le Web (OFF)
     data = fetch_off_data(barcode)
+    
+    # 2. Si le Web échoue, on regarde dans ton CSV local
+    if not data:
+        try:
+            df = pd.read_csv("produits.csv")
+            # On cherche le code dans le CSV (on convertit en string pour être sûr)
+            row = df[df['code'].astype(str) == str(barcode)]
+            if not row.empty:
+                data = {
+                    "nom": row.iloc[0]['nom'],
+                    "emb": row.iloc[0]['emb'],
+                    "ingredients": row.iloc[0]['ingredients'],
+                    "categorie": row.iloc[0]['categorie']
+                }
+        except:
+            pass
+
+    # 3. Affichage final
     if data:
         st.subheader(f"Produit : {data['nom']}")
-        
-        if data['emb']:
-            st.info(f"🏭 Usine : {data['emb']}")
-            clones = find_clones_api(data['emb'], data['categorie'])
-            
-            autres_produits = [c for c in clones if c.get('product_name', '').lower() != data['nom'].lower()]
-            
-            if autres_produits:
-                st.write("### 💡 Équivalents trouvés :")
-                for c in autres_produits:
-                    nom_clone = c.get('product_name', 'Marque Distributeur')
-                    st.write(f"✅ **{nom_clone}**")
-                    with st.expander(f"🔬 Comparer la recette avec {nom_clone}"):
-                        ing_clone = c.get('ingredients_text_fr', c.get('ingredients_text', ''))
-                        diff_result = comparer_listes(data['ingredients'], ing_clone)
-                        st.markdown(f"<div style='padding:10px; border:1px solid #ddd; border-radius:5px;'>{diff_result}</div>", unsafe_allow_html=True)
-            else:
-                st.warning("Aucun clone répertorié pour cette usine.")
-        else:
-            st.error("Code usine (EMB) absent sur Open Food Facts pour ce produit.")
+        # ... (le reste de ton code pour les clones)
     else:
-        st.error("Produit non trouvé. Vérifiez le code-barres.")
+        st.error("Ce produit est inconnu au bataillon (Web et local).")
