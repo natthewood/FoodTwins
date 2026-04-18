@@ -9,17 +9,27 @@ def calculer_score(ing1, ing2):
     return int(score * 100)
 
 def comparer_listes_visuel(texte_ref, texte_comp):
-    """Surligne les différences en rouge"""
-    ref_words = str(texte_ref).lower().replace(',', '').split()
-    comp_words = str(texte_comp).lower().replace(',', '').split()
+    """Surligne les différences et maintient une ponctuation lisible"""
+    if not texte_ref or not texte_comp:
+        return "Données indisponibles."
+    
+    # On crée des listes propres pour la comparaison (sans ponctuation)
+    ref_words = str(texte_ref).lower().replace(',', '').replace('.', '').split()
+    # On garde les mots originaux du clone pour l'affichage (avec virgules si présentes)
+    comp_words_raw = str(texte_comp).split()
+    
     diff_html = ""
-    for word in comp_words:
-        if word in ref_words:
+    for word in comp_words_raw:
+        # On nettoie le mot juste pour le test de présence
+        clean_word = word.lower().replace(',', '').replace('.', '')
+        
+        if clean_word in ref_words:
             diff_html += f"{word} "
         else:
+            # Surlignage du mot différent en gardant sa virgule éventuelle
             diff_html += f"<span style='color:red; font-weight:bold; background-color: #ffecec;'>{word}</span> "
+    
     return diff_html
-
 # 2. CONFIGURATION INTERFACE
 st.set_page_config(page_title="CloneDetector Pro", page_icon="🔍")
 st.title("🔬 CloneDetector Pro")
