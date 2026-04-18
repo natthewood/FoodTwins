@@ -51,32 +51,13 @@ def find_clones_api(emb_code, category_tag):
 
 st.title("🔬 CloneDetector Pro")
 
-barcode = st.text_input("Entrez un code-barres :", placeholder="Ex: 3021690018514")
+# On crée un formulaire pour regrouper la saisie et le bouton
+with st.form("search_form"):
+    barcode = st.text_input("Scannez ou entrez un code-barres :", placeholder="Ex: 3021690018514")
+    submit_button = st.form_submit_button("Lancer la recherche 🔍")
 
-if barcode:
+# La recherche ne se lance que si on clique sur le bouton OU si on fait "Entrée"
+if submit_button and barcode:
     data = fetch_off_data(barcode)
     if data:
-        st.subheader(f"Produit : {data['nom']}")
-        
-        if data['emb']:
-            st.info(f"🏭 Usine : {data['emb']}")
-            clones = find_clones_api(data['emb'], data['categorie'])
-            
-            # On filtre pour ne pas afficher le produit scanné lui-même
-            autres_produits = [c for c in clones if c.get('product_name', '').lower() != data['nom'].lower()]
-            
-            if autres_produits:
-                st.write("### 💡 Équivalents trouvés :")
-                for c in autres_produits:
-                    nom_clone = c.get('product_name', 'Marque Distributeur')
-                    st.write(f"✅ **{nom_clone}**")
-                    
-                    # C'est ici que la magie opère
-                    with st.expander(f"🔬 Comparaison avec {nom_clone}"):
-                        ing_clone = c.get('ingredients_text_fr', c.get('ingredients_text', ''))
-                        diff_result = comparer_listes(data['ingredients'], ing_clone)
-                        st.markdown(f"<div style='padding:10px; border:1px solid #ddd; border-radius:5px;'>{diff_result}</div>", unsafe_allow_html=True)
-            else:
-                st.warning("Aucun clone répertorié pour cette usine.")
-        else:
-            st.error("Code usine absent sur Open Food Facts pour ce produit.")
+        # ... (le reste de ton code actuel pour afficher les résultats)
