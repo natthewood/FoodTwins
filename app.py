@@ -66,11 +66,15 @@ barcode = st.text_input("Scanner ou entrez un code-barres (ex: 3229820129488) :"
 if barcode:
     data = fetch_off_data(barcode)
     
-    try:
-        df_local = pd.read_csv("produits.csv", dtype={'code': str})
-    except:
-        st.sidebar.error("Fichier produits.csv introuvable.")
-        df_local = pd.DataFrame()
+# --- CHARGEMENT DU CSV SÉCURISÉ ---
+try:
+    # On force TOUTES les colonnes à être lues comme du texte brut (str)
+    df_local = pd.read_csv("produits.csv", dtype=str)
+    # On nettoie les espaces invisibles au cas où
+    df_local['code'] = df_local['code'].str.strip()
+except Exception as e:
+    st.sidebar.error(f"Erreur fichier : {e}")
+    df_local = pd.DataFrame()
 
     if not data and not df_local.empty:
         local_match = df_local[df_local['code'] == str(barcode).strip()]
