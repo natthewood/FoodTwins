@@ -172,7 +172,7 @@ with tab_search:
                     if all_clones:
                         st.subheader(f"💡 {len(all_clones)} Clones trouvés")
                         # Remplacer la boucle d'affichage des clones par ceci :
-for c in all_clones[:10]:
+                        for c in all_clones[:10]:
     with st.container():
         # Création d'une "carte" visuelle
         st.markdown(f"""
