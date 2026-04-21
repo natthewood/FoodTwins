@@ -15,7 +15,7 @@ st.markdown("""
     .badge { padding: 4px 10px; border-radius: 12px; font-weight: bold; margin-right: 5px; display: inline-block; margin-bottom: 5px; font-size: 0.85em; }
     .vegan { background-color: #2ecc71; color: white; }
     .no-pork { background-color: #f1c40f; color: black; }
-    .diff-red { color: #e74c3c; font-weight: bold; text-decoration: underline; }
+    .diff-red { color: #e74c3c; font-weight: bold; text-decoration: underline; background-color: #fdf2f2; padding: 2px; border-radius: 3px; }
     .card { border: 1px solid #ddd; padding: 20px; border-radius: 12px; margin-bottom: 15px; background-color: white; box-shadow: 2px 2px 8px rgba(0,0,0,0.05); color: black; }
     .source-tag { font-size: 0.7em; background: #3498db; color: white; padding: 2px 6px; border-radius: 4px; float: right; }
     </style>
@@ -30,13 +30,9 @@ with col_head2:
     st.markdown("#### Parce que la vie devrait être moins chère")
 
 # --- FONCTIONS ---
-# --- 1. MODIFICATION DE LA FONCTION (plus robuste) ---
 def highlight_diff(base, target):
-    # On nettoie et on sépare les ingrédients par virgule
     b_list = [x.strip().lower() for x in re.split(r'[,;.]', str(base)) if x.strip()]
     t_list = [x.strip() for x in re.split(r'[,;.]', str(target)) if x.strip()]
-    
-    # On crée une liste de mots en rouge pour ce qui n'est pas dans la base
     highlighted = []
     for item in t_list:
         if item.lower() not in b_list:
@@ -44,45 +40,6 @@ def highlight_diff(base, target):
         else:
             highlighted.append(item)
     return ", ".join(highlighted)
-
-# --- 2. DANS L'ONGLET RECHERCHE (Affichage du produit principal) ---
-if p:
-    # ... (bloc col_img / col_info existant)
-    
-    # AJOUT : Affichage des ingrédients du produit scanné
-    with st.expander("📄 Voir la liste complète des ingrédients du produit scanné"):
-        st.write(p['ing'])
-
-    if p['emb']:
-        # ... (recherche des clones)
-        
-        if clones:
-            st.divider()
-            st.markdown(f"### 💡 Alternatives trouvées ({len(clones)})")
-            
-            for c in clones[:10]:
-                if str(c['code']) != str(p['code']):
-                    score = int(difflib.SequenceMatcher(None, p['ing'], c['ing']).ratio() * 100)
-                    
-                    with st.container():
-                        st.markdown(f"""
-                        <div class="card">
-                            <h4 style="margin:0;">{c['nom']} ({c['marque']})</h4>
-                            <p style="margin:5px 0;">Ressemblance : <b>{score}%</b></p>
-                            {get_badges(c['ing'])}
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
-                        # MODIFICATION ICI : On affiche les deux listes pour comparer
-                        with st.expander("🔍 Comparer les recettes en détail"):
-                            col_base, col_clone = st.columns(2)
-                            with col_base:
-                                st.caption("Recette originale")
-                                st.write(p['ing'])
-                            with col_clone:
-                                st.caption("Recette du clone (en rouge : ce qui change)")
-                                diff_html = highlight_diff(p['ing'], c['ing'])
-                                st.markdown(f"<div style='font-size:0.9em;'>{diff_html}</div>", unsafe_allow_html=True)
 
 def get_badges(ingredients):
     badges = ""
@@ -101,26 +58,26 @@ def fetch_off(barcode):
     try:
         res = requests.get(f"https://world.openfoodfacts.org/api/v2/product/{barcode}.json", timeout=8).json()
         if res.get('status') == 1:
-            p = res['product']
-            emb = p.get('emb_codes', '').split(',')[0].strip() or p.get('manufacturing_places', '').split(',')[0].strip()
+            p_data = res['product']
+            emb = p_data.get('emb_codes', '').split(',')[0].strip() or p_data.get('manufacturing_places', '').split(',')[0].strip()
             return {
-                "code": barcode, "nom": p.get('product_name_fr', 'Inconnu'),
-                "marque": p.get('brands', 'Inconnue'), "emb": emb,
-                "categorie": p.get('categories_tags', [''])[0].replace('en:', '').replace('fr:', ''),
-                "ing": p.get('ingredients_text_fr', 'Non renseigné'), "img": p.get('image_front_url', '')
+                "code": barcode, "nom": p_data.get('product_name_fr', 'Inconnu'),
+                "marque": p_data.get('brands', 'Inconnue'), "emb": emb,
+                "categorie": p_data.get('categories_tags', [''])[0].replace('en:', '').replace('fr:', ''),
+                "ing": p_data.get('ingredients_text_fr', 'Non renseigné'), "img": p_data.get('image_front_url', '')
             }
     except: return None
 
 def fetch_clones(emb, cat_filter):
-    clones = []
+    clones_list = []
     try:
         clean_cat = cat_filter.split(',')[-1].strip()
         url = f"https://world.openfoodfacts.org/cgi/search.pl?action=process&tagtype_0=emb_codes&tag_contains_0=contains&tag_0={emb}&tagtype_1=categories&tag_contains_1=contains&tag_1={clean_cat}&json=true"
         res = requests.get(url, timeout=8).json()
-        for p in res.get('products', []):
-            clones.append({"code": p.get('code'), "nom": p.get('product_name_fr', 'Inconnu'), "marque": p.get('brands', 'Inconnue'), "ing": p.get('ingredients_text_fr', 'Non renseigné')})
+        for p_item in res.get('products', []):
+            clones_list.append({"code": p_item.get('code'), "nom": p_item.get('product_name_fr', 'Inconnu'), "marque": p_item.get('brands', 'Inconnue'), "ing": p_item.get('ingredients_text_fr', 'Non renseigné')})
     except: pass
-    return clones
+    return clones_list
 
 # --- INTERFACE PAR ONGLETS ---
 tab_search, tab_add = st.tabs(["🔍 Rechercher un jumeau", "📸 Enrichir la base"])
@@ -149,6 +106,9 @@ with tab_search:
                 st.subheader(f"{p['nom']} - {p['marque']}")
                 st.markdown(get_badges(p['ing']), unsafe_allow_html=True)
                 st.info(f"🏭 Usine : **{p['emb']}** | 🏷️ Catégorie : {p['categorie']}")
+            
+            with st.expander("📄 Voir les ingrédients du produit scanné"):
+                st.write(p['ing'])
 
             if p['emb']:
                 with st.spinner("Analyse des usines en cours..."):
@@ -160,15 +120,21 @@ with tab_search:
 
                     if clones:
                         st.divider()
-                        st.markdown(f"### 💡 Nous avons trouvé {len(clones)} alternatives")
-                        for c in clones[:10]:
+                        st.markdown(f"### 💡 {len(clones)} Alternatives trouvées")
+                        for c in clones[:15]:
                             if str(c['code']) != str(p['code']):
                                 score = int(difflib.SequenceMatcher(None, p['ing'], c['ing']).ratio() * 100)
                                 with st.container():
                                     st.markdown(f"""<div class="card"><span class="source-tag">{"Fichier Local" if c.get('src') else "Open Food Facts"}</span><h4 style="margin:0;">{c['nom']} ({c['marque']})</h4><p style="margin:5px 0;">Ressemblance recette : <b>{score}%</b></p>{get_badges(c['ing'])}</div>""", unsafe_allow_html=True)
-                                    with st.expander("🔍 Comparer la composition"):
-                                        diff = highlight_diff(p['ing'], c['ing'])
-                                        st.markdown(f"**Ingrédients :** {diff}", unsafe_allow_html=True)
+                                    with st.expander("🔍 Comparer les compositions en détail"):
+                                        c1, c2 = st.columns(2)
+                                        with c1:
+                                            st.caption("Recette Originale")
+                                            st.write(p['ing'])
+                                        with c2:
+                                            st.caption("Recette du Clone (Différences en rouge)")
+                                            diff_html = highlight_diff(p['ing'], c['ing'])
+                                            st.markdown(f"<div style='font-size:0.9em;'>{diff_html}</div>", unsafe_allow_html=True)
             else:
                 st.warning("Impossible de trouver des clones sans code usine (EMB).")
         else:
