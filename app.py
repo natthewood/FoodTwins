@@ -28,12 +28,10 @@ col_logo, col_titre = st.columns([1, 5])
 
 with col_logo:
     if os.path.exists("logo.png"):
-        image = Image.open("logo.png")
-        # On redimensionne l'image pour qu'elle soit carrée et propre
-        st.image(image, width=120)
+        st.image("logo.png", width=120)
     else:
-        st.warning("⚠️ logo.png manquant")
-
+        # Affiche une icône de substitution sympa au lieu d'un message d'erreur
+        st.markdown("## 👥")
 with col_titre:
     st.title("TwinFood : Débusquez les clones !")
     st.markdown("##### Identifiez les produits de grandes marques et leurs alternatives de distributeurs.")
@@ -95,7 +93,10 @@ def fetch_clones_off(emb_code, category_filter):
                 })
     except: pass
     return clones
-
+def fetch_clones_off(emb_code, category_filter):
+    # On ajoute un filtre de catégorie directement dans l'URL de recherche Open Food Facts
+    url = f"https://world.openfoodfacts.org/cgi/search.pl?action=process&tagtype_0=emb_codes&tag_contains_0=contains&tag_0={emb_code}&tagtype_1=categories&tag_contains_1=contains&tag_1={category_filter}&json=true&page_size=50"
+    # ... reste du code
 # --- UTILITAIRES ---
 def highlight_differences(base_ing, clone_ing):
     base_list = [x.strip().lower() for x in re.split(r'[,;]', str(base_ing))]
