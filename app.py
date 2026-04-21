@@ -131,10 +131,11 @@ def get_badges_html(ingredients):
     
     return badges
 
-def highlight_differences(base_ing, clone_ing):
-    # Coupe les ingrédients par virgule
-    base_list = [x.strip().lower() for x in re.split(r'[,;]', base_ing)]
-    clone_list = [x.strip() for x in re.split(r'[,;]', clone_ing)]
+def highlight_diff(base, target):
+    """Fonction de comparaison des ingrédients"""
+    b_list = [x.strip().lower() for x in re.split(r'[,;]', str(base))]
+    t_list = [x.strip() for x in re.split(r'[,;]', str(target))]
+    return ", ".join([f"<span class='diff-red'>{i}</span>" if i.lower() not in b_list else i for i in t_list])
     
     highlighted = []
     for item in clone_list:
@@ -199,20 +200,25 @@ with tab1:
                                 "source": "📁 Local"
                             })
 
-                    if all_clones:
-                        st.subheader(f"💡 {len(all_clones)} Clones trouvés")
-                        for c in all_clones[:15]:
-                            # On compare les codes-barres pour ne pas s'afficher soi-même
-                            if str(c['code']) != str(code_input):
-                                score = int(difflib.SequenceMatcher(None, str(p['ingredients']), str(c['ingredients'])).ratio() * 100)
-                                with st.container():
-                                    st.markdown(f"""<div class="card">
-                                        <h4 style="margin:0;">{c['nom']}</h4>
-                                        <p style="color: gray; margin:0;">Marque : {c['marque']} | Ressemblance : <b>{score}%</b></p>
-                                    </div>""", unsafe_allow_html=True)
-                                    with st.expander("Comparer la recette"):
-                                        diff = highlight_diff(p['ingredients'], c['ingredients'])
-                                        st.markdown(f"**Ingrédients :** {diff}", unsafe_allow_html=True)
+                  if all_clones:
+        st.subheader(f"💡 {len(all_clones)} Clones trouvés")
+        for c in all_clones[:15]:
+            # On vérifie que c'est un clone différent du produit scanné
+            if str(c.get('code')) != str(code_input):
+                score = int(difflib.SequenceMatcher(None, str(p['ingredients']), str(c['ingredients'])).ratio() * 100)
+                
+                with st.container():
+                    st.markdown(f"""<div class="card">
+                        <h4 style="margin:0;">{c.get('nom', 'Inconnu')}</h4>
+                        <p style="color: gray; margin:0;">Marque : {c.get('marque', 'Inconnue')} | Ressemblance : <b>{score}%</b></p>
+                    </div>""", unsafe_allow_html=True)
+                    
+                    with st.expander("🔍 Voir les différences de recette"):
+                        # ICI on utilise le bon nom de fonction
+                        diff_text = highlight_diff(p['ingredients'], c['ingredients'])
+                        st.markdown(f"**Ingrédients du clone :** {diff_text}", unsafe_allow_html=True)
+
+Pourquoi ça va marcher maintenant ?
                     else:
                         st.warning("Aucun clone trouvé.")
             else:
