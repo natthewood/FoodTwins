@@ -69,19 +69,27 @@ def fetch_product_off(barcode):
     return None
 
 def fetch_clones_off(emb_code, category_filter):
-    # Recherche filtrée par Usine ET Catégorie
-    url = f"https://world.openfoodfacts.org/cgi/search.pl?action=process&tagtype_0=emb_codes&tag_contains_0=contains&tag_0={emb_code}&tagtype_1=categories&tag_contains_1=contains&tag_1={category_filter}&json=true&page_size=50"
+    # On nettoie la catégorie pour éviter les erreurs d'URL (on ne garde que le dernier segment)
+    clean_cat = category_filter.split(',')[-1].strip()
+    
+    # URL de recherche optimisée
+    url = f"https://world.openfoodfacts.org/cgi/search.pl?action=process&tagtype_0=emb_codes&tag_contains_0=contains&tag_0={emb_code}&tagtype_1=categories&tag_contains_1=contains&tag_1={clean_cat}&json=true&page_size=50"
+    
     clones = []
     try:
-        res = requests.get(url, timeout=5).json()
-        for p in res.get('products', []):
-            clones.append({
-                "nom": p.get('product_name_fr', 'Inconnu'),
-                "marque": p.get('brands', 'Inconnue'),
-                "ingredients": p.get('ingredients_text_fr', 'Non renseigné'),
-                "source": "🌐 Web"
-            })
-    except: pass
+        # On passe le timeout à 10 secondes
+        res = requests.get(url, timeout=10).json()
+        if "products" in res:
+            for p in res.get('products', []):
+                clones.append({
+                    "code": p.get('code'), # Indispensable pour la comparaison !
+                    "nom": p.get('product_name_fr', 'Inconnu'),
+                    "marque": p.get('brands', 'Inconnue'),
+                    "ingredients": p.get('ingredients_text_fr', 'Non renseigné'),
+                    "source": "🌐 Web"
+                })
+    except Exception as e:
+        st.error(f"⚠️ Problème de connexion avec le site : {e}")
     return clones
 
 def highlight_differences(base_ing, clone_ing):
