@@ -43,13 +43,22 @@ def highlight_diff(base, target):
 
 def get_badges(ingredients):
     badges = ""
+    # On met tout en minuscules pour ne pas rater "Porc" avec une majuscule
     ing_low = str(ingredients).lower()
     
-    # Correction de la syntaxe pour plusieurs mots
-    pork_terms = ["porc", "jambon", "lardons", "salami"]
-    if not any(word in ing_low for word in pork_terms):
-        badges += '<span class="badge no-pork">🚫🐷 Sans Porc</span>'
+    # 1. Liste des mots-clés qui signifient "Porc"
+    pork_keywords = ["porc", "jambon", "lardon", "salami", "chorizo", "poitrine fumée", "pancetta"]
     
+    # 2. On vérifie si l'UN de ces mots est présent dans la liste des ingrédients
+    # La condition 'word in ing_low' détecte aussi "jambonné", "lardons", etc.
+    if any(word in ing_low for word in pork_keywords):
+        # Si on trouve du porc, on peut mettre un badge d'alerte (optionnel)
+        # badges += '<span class="badge has-pork">🐷 Contient du Porc</span>'
+        pass 
+    else:
+        # Si on n'en trouve AUCUN, on met le badge "Sans Porc"
+        badges += '<span class="badge no-pork">🚫🐷 Sans Porc</span>'
+
     veggie_terms = ["viande", "boeuf", "poulet", "poisson", "thon", "saumon"]
     if not any(word in ing_low for word in veggie_terms):
         badges += '<span class="badge vegan">🍃 Veggie</span>'
