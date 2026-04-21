@@ -201,8 +201,8 @@ with tab1:
                             })
 
                   if all_clones:
-        st.subheader(f"💡 {len(all_clones)} Clones trouvés")
-        for c in all_clones[:15]:
+            st.subheader(f"💡 {len(all_clones)} Clones trouvés")
+            for c in all_clones[:15]:
             # On vérifie que c'est un clone différent du produit scanné
             if str(c.get('code')) != str(code_input):
                 score = int(difflib.SequenceMatcher(None, str(p['ingredients']), str(c['ingredients'])).ratio() * 100)
