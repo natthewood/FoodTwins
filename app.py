@@ -8,7 +8,7 @@ import os
 # --- CONFIGURATION & DESIGN ---
 st.set_page_config(page_title="TwinFood", page_icon="👥", layout="wide")
 
-# --- STYLE CSS (Ergonomie & Couleurs) ---
+# --- STYLE CSS ---
 st.markdown("""
     <style>
     .main { background-color: #f8f9fa; }
@@ -21,27 +21,15 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- EN-TÊTE (Logo SVG + Slogan) ---
+# --- EN-TÊTE ---
 col_head1, col_head2 = st.columns([1, 4])
 with col_head1:
-    st.markdown("""
-    <svg width="100" height="100" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-            <linearGradient id="grad1" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#34495e;stop-opacity:1" /><stop offset="100%" style="stop-color:#2c3e50;stop-opacity:1" /></linearGradient>
-            <linearGradient id="grad2" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#2ecc71;stop-opacity:1" /><stop offset="100%" style="stop-color:#27ae60;stop-opacity:1" /></linearGradient>
-        </defs>
-        <path d="M 20 20 L 100 20 L 100 100 C 100 110, 20 110, 20 100 Z" fill="url(#grad1)" />
-        <rect x="35" y="40" width="5" height="40" fill="#ecf0f1" />
-        <rect x="45" y="40" width="10" height="40" fill="#ecf0f1" />
-        <rect x="60" y="40" width="3" height="40" fill="#ecf0f1" />
-        <path d="M 90 40 L 100 50 L 115 25" stroke="url(#grad2)" stroke-width="10" fill="none" stroke-linecap="round" />
-    </svg>
-    """, unsafe_allow_html=True)
+    st.markdown("""<svg width="100" height="100" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="grad1" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#34495e;stop-opacity:1" /><stop offset="100%" style="stop-color:#2c3e50;stop-opacity:1" /></linearGradient><linearGradient id="grad2" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#2ecc71;stop-opacity:1" /><stop offset="100%" style="stop-color:#27ae60;stop-opacity:1" /></linearGradient></defs><path d="M 20 20 L 100 20 L 100 100 C 100 110, 20 110, 20 100 Z" fill="url(#grad1)" /><rect x="35" y="40" width="5" height="40" fill="#ecf0f1" /><rect x="45" y="40" width="10" height="40" fill="#ecf0f1" /><rect x="60" y="40" width="3" height="40" fill="#ecf0f1" /><path d="M 90 40 L 100 50 L 115 25" stroke="url(#grad2)" stroke-width="10" fill="none" stroke-linecap="round" /></svg>""", unsafe_allow_html=True)
 with col_head2:
     st.title("TwinFood")
     st.markdown("#### Parce que la vie devrait être moins chère")
 
-# --- FONCTIONS TECHNIQUES ---
+# --- FONCTIONS ---
 def highlight_diff(base, target):
     b_list = [x.strip().lower() for x in re.split(r'[,;]', str(base))]
     t_list = [x.strip() for x in re.split(r'[,;]', str(target))]
@@ -58,7 +46,7 @@ def get_badges(ingredients):
 def load_data():
     if os.path.exists("produits.csv"):
         return pd.read_csv("produits.csv", dtype=str).fillna("")
-    return pd.DataFrame()
+    return pd.DataFrame(columns=["code", "nom", "marque", "categorie", "emb", "ingredients"])
 
 def fetch_off(barcode):
     try:
@@ -69,7 +57,7 @@ def fetch_off(barcode):
             return {
                 "code": barcode, "nom": p.get('product_name_fr', 'Inconnu'),
                 "marque": p.get('brands', 'Inconnue'), "emb": emb,
-                "cat": p.get('categories_tags', [''])[0].replace('en:', '').replace('fr:', ''),
+                "categorie": p.get('categories_tags', [''])[0].replace('en:', '').replace('fr:', ''),
                 "ing": p.get('ingredients_text_fr', 'Non renseigné'), "img": p.get('image_front_url', '')
             }
     except: return None
@@ -89,41 +77,33 @@ def fetch_clones(emb, cat_filter):
 tab_search, tab_add = st.tabs(["🔍 Rechercher un jumeau", "📸 Enrichir la base"])
 
 with tab_search:
-    # On crée un formulaire pour regrouper la saisie et le bouton
     with st.form("search_form"):
         code_input = st.text_input("Scannez ou saisissez un code-barres (ex: 3560070513904) :")
         submit_button = st.form_submit_button("Lancer la recherche 🚀")
     
-    # La recherche ne se déclenche que si on clique sur le bouton
-    if submit_button and code_input:
+    if (submit_button or code_input) and code_input:
         df_local = load_data()
         p = fetch_off(code_input)
         
-        # ... (le reste de ton code de recherche p, all_clones, etc.)
-        
-        # Secours local si OFF échoue
         if not p and not df_local.empty:
-            match = df_local[df_local['code'] == code_input]
+            match = df_local[df_local['code'] == str(code_input)]
             if not match.empty:
                 r = match.iloc[0]
-                p = {"code": code_input, "nom": r.get('nom'), "marque": r.get('marque'), "emb": r.get('emb'), "cat": r.get('categorie'), "ing": r.get('ingredients'), "img": ""}
+                p = {"code": code_input, "nom": r.get('nom'), "marque": r.get('marque'), "emb": r.get('emb'), "categorie": r.get('categorie'), "ing": r.get('ingredients'), "img": ""}
 
         if p:
-            # --- AFFICHAGE PRODUIT PRINCIPAL ---
             col_img, col_info = st.columns([1, 3])
             with col_img:
-                if p['img']: st.image(p['img'], width=150)
+                if p.get('img'): st.image(p['img'], width=150)
                 else: st.markdown("### 🍕")
             with col_info:
                 st.subheader(f"{p['nom']} - {p['marque']}")
                 st.markdown(get_badges(p['ing']), unsafe_allow_html=True)
-                st.info(f"🏭 Usine : **{p['emb']}** | 🏷️ Catégorie : {p['cat']}")
+                st.info(f"🏭 Usine : **{p['emb']}** | 🏷️ Catégorie : {p['categorie']}")
 
-            # --- RECHERCHE ET AFFICHAGE CLONES ---
             if p['emb']:
                 with st.spinner("Analyse des usines en cours..."):
-                    clones = fetch_clones(p['emb'], p['cat'])
-                    # Mix avec le local
+                    clones = fetch_clones(p['emb'], p['categorie'])
                     if not df_local.empty:
                         loc = df_local[(df_local['emb'] == p['emb']) & (df_local['code'] != code_input)]
                         for _, r in loc.iterrows():
@@ -132,24 +112,18 @@ with tab_search:
                     if clones:
                         st.divider()
                         st.markdown(f"### 💡 Nous avons trouvé {len(clones)} alternatives")
-                        
                         for c in clones[:10]:
                             if str(c['code']) != str(p['code']):
                                 score = int(difflib.SequenceMatcher(None, p['ing'], c['ing']).ratio() * 100)
                                 with st.container():
-                                    st.markdown(f"""
-                                    <div class="card">
-                                        <span class="source-tag">{"Fichier Local" if c.get('src') else "Open Food Facts"}</span>
-                                        <h4 style="margin:0;">{c['nom']} ({c['marque']})</h4>
-                                        <p style="margin:5px 0;">Ressemblance recette : <b>{score}%</b></p>
-                                        {get_badges(c['ing'])}
-                                    </div>
-                                    """, unsafe_allow_html=True)
+                                    st.markdown(f"""<div class="card"><span class="source-tag">{"Fichier Local" if c.get('src') else "Open Food Facts"}</span><h4 style="margin:0;">{c['nom']} ({c['marque']})</h4><p style="margin:5px 0;">Ressemblance recette : <b>{score}%</b></p>{get_badges(c['ing'])}</div>""", unsafe_allow_html=True)
                                     with st.expander("🔍 Comparer la composition"):
                                         diff = highlight_diff(p['ing'], c['ing'])
                                         st.markdown(f"**Ingrédients :** {diff}", unsafe_allow_html=True)
             else:
                 st.warning("Impossible de trouver des clones sans code usine (EMB).")
+        else:
+            st.error("Produit introuvable.")
 
 with tab_add:
     st.subheader("Ajouter un produit manquant")
@@ -166,7 +140,7 @@ with tab_add:
         
         if st.form_submit_button("Enregistrer le produit"):
             if new_code and new_nom:
-                new_data = pd.DataFrame([{"code": new_code, "nom": new_nom, "marque": new_marque, "categorie": new_cat, "emb": new_emb, "ingredients": new_ing}])
+                new_data = pd.DataFrame([{"code": str(new_code), "nom": new_nom, "marque": new_marque, "categorie": new_cat, "emb": new_emb, "ingredients": new_ing}])
                 df_old = load_data()
                 pd.concat([df_old, new_data]).to_csv("produits.csv", index=False)
                 st.success("Produit ajouté avec succès !")
