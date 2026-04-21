@@ -16,6 +16,48 @@ st.markdown("""
     .card { border: 1px solid #ddd; padding: 15px; border-radius: 10px; margin-bottom: 10px; background-color: white; box-shadow: 2px 2px 5px rgba(0,0,0,0.05); }
     </style>
     """, unsafe_allow_html=True)
+import streamlit as st
+import os
+
+# --- INJECTION DU LOGO EN SVG ---
+# Nous utilisons du code SVG pour dessiner le logo afin de contourner le bug d'affichage.
+st.markdown("""
+<style>
+.logo-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+</style>
+<div class="logo-container">
+    <svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <linearGradient id="grad1" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:#34495e;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#2c3e50;stop-opacity:1" />
+            </linearGradient>
+            <linearGradient id="grad2" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:#2ecc71;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#27ae60;stop-opacity:1" />
+            </linearGradient>
+        </defs>
+        <path d="M 20 20 L 100 20 L 100 100 C 100 110, 20 110, 20 100 Z" fill="url(#grad1)" />
+        <path d="M 10 30 L 110 30 L 105 15 L 15 15 Z" fill="url(#grad1)" />
+        
+        <rect x="30" y="40" width="5" height="50" fill="#ecf0f1" rx="1" />
+        <rect x="40" y="40" width="10" height="50" fill="#ecf0f1" rx="1" />
+        <rect x="55" y="40" width="3" height="50" fill="#ecf0f1" rx="1" />
+        <rect x="63" y="40" width="8" height="50" fill="#ecf0f1" rx="1" />
+        <rect x="76" y="40" width="14" height="50" fill="#ecf0f1" rx="1" />
+        
+        <path d="M 90 40 L 100 50 L 115 25" stroke="url(#grad2)" stroke-width="12" fill="none" stroke-linecap="round" />
+        <path d="M 85 45 L 95 55 L 110 30" stroke="url(#grad2)" stroke-width="8" fill="none" stroke-linecap="round" />
+        
+        <text x="60" y="115" text-anchor="middle" font-size="22" font-weight="bold" fill="#ecf0f1">TF</text>
+    </svg>
+</div>
+""", unsafe_allow_html=True)
 
 # --- EN-TÊTE ---
 col_logo, col_titre = st.columns([1, 5])
