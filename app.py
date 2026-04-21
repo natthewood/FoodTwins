@@ -102,10 +102,53 @@ def fetch_clones_off(emb_code, category_filter):
     except: pass
     return clones
 
-def highlight_diff(base, target):
-    b_list = [x.strip().lower() for x in re.split(r'[,;]', str(base))]
-    t_list = [x.strip() for x in re.split(r'[,;]', str(target))]
-    return ", ".join([f"<span class='diff-red'>{i}</span>" if i.lower() not in b_list else i for i in t_list])
+@st.cache_data(ttl=60) # Recharge les données toutes les minutes si modifiées
+def load_data():
+    if os.path.exists("produits.csv"):
+        df = pd.read_csv("produits.csv", dtype=str).fillna("")
+        df['code'] = df['code'].str.strip()
+        df['sucre'] = pd.to_numeric(df['sucre'], errors='coerce').fillna(0)
+        return df
+    return pd.DataFrame()
+
+def save_new_product(new_data):
+    df = load_data()
+    new_df = pd.DataFrame([new_data])
+    df = pd.concat([df, new_df], ignore_index=True)
+    df.to_csv("produits.csv", index=False)
+    st.cache_data.clear() # Force le rafraîchissement
+
+def get_badges_html(ingredients):
+    badges = ""
+    ing_low = ingredients.lower()
+    
+    if "porc" not in ing_low and "lard" not in ing_low and "gélatine" not in ing_low:
+        badges += '<span class="badge no-pork">🚫 🐷 Sans Porc</span>'
+    if not any(x in ing_low for x in ["viande", "poisson", "poulet", "boeuf", "jambon"]):
+        badges += '<span class="badge vegan">🍃 Végétarien</span>'
+    if not any(x in ing_low for x in ["blé", "farine de blé", "gluten", "orge"]):
+        badges += '<span class="badge gluten-free">🌾 Sans Gluten</span>'
+    
+    return badges
+
+def highlight_differences(base_ing, clone_ing):
+    # Coupe les ingrédients par virgule
+    base_list = [x.strip().lower() for x in re.split(r'[,;]', base_ing)]
+    clone_list = [x.strip() for x in re.split(r'[,;]', clone_ing)]
+    
+    highlighted = []
+    for item in clone_list:
+        # Si l'ingrédient du clone n'est pas dans le produit de base, on le met en rouge
+        if item.lower() not in base_list:
+            highlighted.append(f"<span class='diff-red'>{item}</span>")
+        else:
+            highlighted.append(item)
+    return ", ".join(highlighted)
+
+def get_score_color(score):
+    if score >= 90: return "🟢"
+    elif score >= 70: return "🟠"
+    else: return "🔴"
 
 # --- INTERFACE ---
 tab1, tab2 = st.tabs(["🔍 Recherche", "📸 Ajouter"])
