@@ -43,21 +43,24 @@ def highlight_diff(base, target):
 
 def get_badges(ingredients):
     badges = ""
-    # On met tout en minuscules pour ne pas rater "Porc" avec une majuscule
     ing_low = str(ingredients).lower()
     
-    # 1. Liste des mots-clés qui signifient "Porc"
-    pork_keywords = ["porc", "jambon", "lardon", "salami", "chorizo", "poitrine fumée", "pancetta"]
+    # 1. LISTE ÉLARGIE POUR LE PORC
+    # On cherche ces racines de mots. "lardon" trouvera "lardons", "jambon" trouvera "jambonné"
+    pork_terms = ["porc", "jambon", "lardon", "salami", "chorizo", "pancetta", "cochon", "suidés"]
     
-    # 2. On vérifie si l'UN de ces mots est présent dans la liste des ingrédients
-    # La condition 'word in ing_low' détecte aussi "jambonné", "lardons", etc.
-    if any(word in ing_low for word in pork_keywords):
-        # Si on trouve du porc, on peut mettre un badge d'alerte (optionnel)
-        # badges += '<span class="badge has-pork">🐷 Contient du Porc</span>'
-        pass 
-    else:
-        # Si on n'en trouve AUCUN, on met le badge "Sans Porc"
+    # Si AUCUN de ces mots n'est présent, ALORS c'est sans porc
+    if not any(word in ing_low for word in pork_terms):
         badges += '<span class="badge no-pork">🚫🐷 Sans Porc</span>'
+
+    # 2. LISTE ÉLARGIE POUR LE VEGGIE
+    # Pour éviter qu'un sandwich jambon soit "Veggie", on ajoute le porc et le poisson ici aussi
+    animal_terms = ["viande", "boeuf", "poulet", "dinde", "poisson", "thon", "saumon", "crevette"] + pork_terms
+    
+    if not any(word in ing_low for word in animal_terms):
+        badges += '<span class="badge vegan">🍃 Veggie</span>'
+        
+    return badges
 
     veggie_terms = ["viande", "boeuf", "poulet", "poisson", "thon", "saumon"]
     if not any(word in ing_low for word in veggie_terms):
