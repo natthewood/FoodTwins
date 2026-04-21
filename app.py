@@ -187,9 +187,9 @@ with tab_search:
                                 with st.expander(f"Comparer la recette ({score}% identique)"):
                                     diff_html = highlight_differences(p['ingredients'], c['ingredients'])
                                     st.markdown(f"**Différences :** {diff_html}", unsafe_allow_html=True)
-                                                for c in all_clones[:15]:
-                                                    score = int(difflib.SequenceMatcher(None, str(p['ingredients']), str(c['ingredients'])).ratio() * 100)
-                                                    color_icon = "🟢" if score > 85 else "🟠" if score > 65 else "🔴"
+                         for c in all_clones[:15]:
+                                score = int(difflib.SequenceMatcher(None, str(p['ingredients']), str(c['ingredients'])).ratio() * 100)
+                                     color_icon = "🟢" if score > 85 else "🟠" if score > 65 else "🔴"
                             
                             with st.expander(f"{color_icon} {c['nom']} ({c['marque']}) — Ressemblance : {score}%"):
                                 st.write(f"Source : {c['source']}")
