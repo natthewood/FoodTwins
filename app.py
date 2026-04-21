@@ -44,7 +44,7 @@ def highlight_diff(base, target):
 def get_badges(ingredients):
     badges = ""
     ing_low = str(ingredients).lower()
-    if "porc" not in ing_low: badges += '<span class="badge no-pork">🚫🐷 Sans Porc</span>'
+    if "porc","jambon" not in ing_low: badges += '<span class="badge no-pork">🚫🐷 Sans Porc</span>'
     if not any(x in ing_low for x in ["viande", "boeuf", "poulet"]): badges += '<span class="badge vegan">🍃 Veggie</span>'
     return badges
 
