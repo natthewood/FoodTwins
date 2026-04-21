@@ -206,3 +206,19 @@ with tab_add:
                 st.success(f"✅ Produit {f_nom} enregistré avec succès !")
                 st.balloons()
             else: st.error("⚠️ Code-barres et Code Usine sont obligatoires !")
+# Remplacer la boucle d'affichage des clones par ceci :
+for c in all_clones[:10]:
+    with st.container():
+        # Création d'une "carte" visuelle
+        st.markdown(f"""
+        <div style="border: 1px solid #ddd; padding: 15px; border-radius: 10px; margin-bottom: 10px;">
+            <h4 style="margin:0;">{c['nom']}</h4>
+            <p style="color: gray; margin:0;">Marque : {c['marque']} | Source : {c['source']}</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Comparaison des ingrédients à l'intérieur de la carte
+        score = int(difflib.SequenceMatcher(None, str(p['ingredients']), str(c['ingredients'])).ratio() * 100)
+        with st.expander(f"Comparer la recette ({score}% identique)"):
+            diff_html = highlight_differences(p['ingredients'], c['ingredients'])
+            st.markdown(f"**Différences :** {diff_html}", unsafe_allow_html=True)
