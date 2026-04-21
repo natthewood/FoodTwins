@@ -44,8 +44,16 @@ def highlight_diff(base, target):
 def get_badges(ingredients):
     badges = ""
     ing_low = str(ingredients).lower()
-    if ["porc","jambon"] not in ing_low: badges += '<span class="badge no-pork">🚫🐷 Sans Porc</span>'
-    if not any(x in ing_low for x in ["viande", "boeuf", "poulet"]): badges += '<span class="badge vegan">🍃 Veggie</span>'
+    
+    # Correction de la syntaxe pour plusieurs mots
+    pork_terms = ["porc", "jambon", "lardons", "salami"]
+    if not any(word in ing_low for word in pork_terms):
+        badges += '<span class="badge no-pork">🚫🐷 Sans Porc</span>'
+    
+    veggie_terms = ["viande", "boeuf", "poulet", "poisson", "thon", "saumon"]
+    if not any(word in ing_low for word in veggie_terms):
+        badges += '<span class="badge vegan">🍃 Veggie</span>'
+        
     return badges
 
 @st.cache_data(ttl=5)
