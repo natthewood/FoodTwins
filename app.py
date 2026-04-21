@@ -20,18 +20,23 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- FONCTIONS DE CHARGEMENT ---
-@st.cache_data(ttl=60)
+# --- FONCTIONS DE GESTION DU CSV ---
+@st.cache_data(ttl=10)
 def load_local_data():
     if os.path.exists("produits.csv"):
         try:
-            df = pd.read_csv("produits.csv", dtype=str).fillna("")
-            df['code'] = df['code'].str.strip()
-            return df
+            return pd.read_csv("produits.csv", dtype=str).fillna("")
         except: return pd.DataFrame()
     return pd.DataFrame()
 
-# --- RECHERCHE PRODUIT UNIQUE (API) ---
+def save_to_csv(new_row):
+    df = load_local_data()
+    new_df = pd.DataFrame([new_row])
+    df = pd.concat([df, new_df], ignore_index=True)
+    df.to_csv("produits.csv", index=False)
+    st.cache_data.clear()
+
+# --- RECHERCHE API OPEN FOOD FACTS ---
 def fetch_product_off(barcode):
     url = f"https://world.openfoodfacts.org/api/v2/product/{barcode}.json"
     try:
@@ -52,15 +57,12 @@ def fetch_product_off(barcode):
     except: return None
     return None
 
-# --- RECHERCHE DE CLONES SUR LE WEB (API SEARCH) ---
 def fetch_clones_off(emb_code, category_filter):
-    # On cherche les produits qui ont ce code EMB
     url = f"https://world.openfoodfacts.org/cgi/search.pl?action=process&tagtype_0=emb_codes&tag_contains_0=contains&tag_0={emb_code}&json=true&page_size=50"
     clones = []
     try:
         res = requests.get(url, timeout=5).json()
         for p in res.get('products', []):
-            # Filtrage par catégorie pour rester sur le même type de produit
             p_cats = p.get('categories_tags', [])
             if any(category_filter in c for c in p_cats):
                 clones.append({
@@ -93,66 +95,76 @@ def get_badges_html(ingredients):
     if "gluten" not in ing_low and "blé" not in ing_low: badges += '<span class="badge gluten-free">🌾 Sans Gluten</span>'
     return badges
 
-# --- MAIN APP ---
-df_local = load_local_data()
+# --- INTERFACE PRINCIPALE ---
+st.title("🔬 CloneDetector Ultimate")
 
-st.title("🔬 CloneDetector Global (Mode Web-First)")
+tab_search, tab_add = st.tabs(["🔍 Rechercher & Comparer", "📸 Ajouter au CSV"])
 
-with st.form("search"):
-    c1, c2 = st.columns([4,1])
-    code_input = c1.text_input("Scannez un code-barres :", placeholder="Ex: 3033490593030")
-    submit = c2.form_submit_button("Lancer la recherche 🚀")
+# --- ONGLET 1 : RECHERCHE ---
+with tab_search:
+    with st.form("search"):
+        c1, c2 = st.columns([4,1])
+        code_input = c1.text_input("Scannez un code-barres :", placeholder="Ex: 3033490593030")
+        submit = c2.form_submit_button("Chercher 🚀")
 
-if submit and code_input:
-    # 1. Priorité WEB
-    p = fetch_product_off(code_input)
-    
-    # 2. Secours LOCAL
-    if not p and not df_local.empty:
-        match_local = df_local[df_local['code'] == code_input]
-        if not match_local.empty:
-            row = match_local.iloc[0]
-            p = {"nom": row['nom'], "marque": row['marque'], "categorie": row['categorie'], 
-                 "emb": row['emb'], "ingredients": row['ingredients'], "sucre": row['sucre'], "source": "📁 Base Locale"}
+    if submit and code_input:
+        df_local = load_local_data()
+        p = fetch_product_off(code_input) # Priorité Web
+        
+        if not p and not df_local.empty: # Secours Local
+            match = df_local[df_local['code'] == code_input]
+            if not match.empty:
+                row = match.iloc[0]
+                p = {"nom": row['nom'], "marque": row['marque'], "categorie": row['categorie'], 
+                     "emb": row['emb'], "ingredients": row['ingredients'], "sucre": row['sucre'], "source": "📁 Base Locale"}
 
-    if p:
-        # Affichage Produit
-        col_img, col_txt = st.columns([1,3])
-        with col_img: 
-            if p.get('image'): st.image(p['image'])
-        with col_txt:
-            st.markdown(f"## {p['nom']} ({p['marque']})")
-            st.markdown(f"<span class='badge source-web'>{p['source']}</span>", unsafe_allow_html=True)
-            st.markdown(get_badges_html(p['ingredients']), unsafe_allow_html=True)
-            st.info(f"🏭 Code Usine détecté : **{p['emb']}** | Type : {p['categorie']}")
+        if p:
+            col_img, col_txt = st.columns([1,3])
+            with col_img: 
+                if p.get('image'): st.image(p['image'])
+            with col_txt:
+                st.markdown(f"## {p['nom']} ({p['marque']})")
+                st.markdown(f"<span class='badge source-web'>{p['source']}</span> {get_badges_html(p['ingredients'])}", unsafe_allow_html=True)
+                st.info(f"🏭 Code Usine : **{p['emb']}**")
 
-        # 3. Recherche de CLONES (Web + Local)
-        if p['emb']:
-            with st.spinner("Recherche mondiale des clones en cours..."):
-                clones_web = fetch_clones_off(p['emb'], p['categorie'])
-                
-                # Ajout des clones de la base locale
-                clones_local = []
-                if not df_local.empty:
-                    match_clones = df_local[(df_local['emb'] == p['emb']) & (df_local['code'] != code_input)]
-                    for _, row in match_clones.iterrows():
-                        clones_local.append({"nom": row['nom'], "marque": row['marque'], "ingredients": row['ingredients'], "sucre": row['sucre'], "source": "📁 Local"})
-                
-                all_clones = clones_web + clones_local
-                
-                if all_clones:
-                    st.success(f"### 💡 {len(all_clones)} Clones trouvés sur le Web et en local !")
-                    for c in all_clones[:15]: # Limite à 15 pour la fluidité
-                        score = int(difflib.SequenceMatcher(None, str(p['ingredients']), str(c['ingredients'])).ratio() * 100)
-                        
-                        # Couleur du score
-                        color = "green" if score > 85 else "orange" if score > 60 else "red"
-                        
-                        with st.expander(f"🛒 {c['nom']} ({c['marque']}) - <span style='color:{color}'>{score}% ressemblance</span>", unsafe_allow_html=True):
-                            st.write(f"Source : {c['source']}")
-                            diff_html = highlight_differences(p['ingredients'], c['ingredients'])
-                            st.markdown(f"**Ingrédients :** {diff_html}", unsafe_allow_html=True)
-                else:
-                    st.warning("Aucun clone trouvé avec ce code usine.")
-    else:
-        st.error("Produit introuvable sur le Web et dans la base de secours.")
+            if p['emb']:
+                with st.spinner("Recherche des clones..."):
+                    clones_web = fetch_clones_off(p['emb'], p['categorie'])
+                    clones_local = []
+                    if not df_local.empty:
+                        ml = df_local[(df_local['emb'] == p['emb']) & (df_local['code'] != code_input)]
+                        for _, r in ml.iterrows():
+                            clones_local.append({"nom": r['nom'], "marque": r['marque'], "ingredients": r['ingredients'], "sucre": r['sucre'], "source": "📁 Local"})
+                    
+                    all_clones = clones_web + clones_local
+                    if all_clones:
+                        st.subheader(f"💡 {len(all_clones)} Clones trouvés")
+                        for c in all_clones[:15]:
+                            score = int(difflib.SequenceMatcher(None, str(p['ingredients']), str(c['ingredients'])).ratio() * 100)
+                            with st.expander(f"{c['nom']} ({c['marque']}) - Ressemblance : {score}%"):
+                                st.markdown(f"**Ingrédients :** {highlight_differences(p['ingredients'], c['ingredients'])}", unsafe_allow_html=True)
+            else: st.warning("Pas de code EMB pour trouver des clones.")
+        else: st.error("Produit inconnu.")
+
+# --- ONGLET 2 : AJOUTER ---
+with tab_add:
+    st.subheader("📸 Ajouter un produit manquant à votre CSV")
+    col1, col2 = st.columns(2)
+    with col1: cam_code = st.camera_input("Photo du Code")
+    with col2: cam_ing = st.camera_input("Photo Ingrédients")
+
+    with st.form("add_form", clear_on_submit=True):
+        f_code = st.text_input("Code-barres")
+        f_nom = st.text_input("Nom")
+        f_marque = st.text_input("Marque")
+        f_cat = st.text_input("Catégorie (ex: rillettes, yaourt)")
+        f_emb = st.text_input("Code Usine (EMB)")
+        f_ing = st.text_area("Ingrédients")
+        f_sucre = st.text_input("Sucre (g/100g)")
+        
+        if st.form_submit_button("💾 Sauvegarder dans le CSV"):
+            if f_code and f_emb:
+                save_to_csv({"code": f_code, "nom": f_nom, "marque": f_marque, "categorie": f_cat, "emb": f_emb, "ingredients": f_ing, "sucre": f_sucre})
+                st.success("✅ Produit enregistré !")
+                st.balloons()
+            else: st.error("Code et EMB obligatoires !")
