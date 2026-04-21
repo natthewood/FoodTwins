@@ -89,11 +89,17 @@ def fetch_clones(emb, cat_filter):
 tab_search, tab_add = st.tabs(["🔍 Rechercher un jumeau", "📸 Enrichir la base"])
 
 with tab_search:
-    code_input = st.text_input("Scannez un code-barres (ex: 3560070513904) :")
+    # On crée un formulaire pour regrouper la saisie et le bouton
+    with st.form("search_form"):
+        code_input = st.text_input("Scannez ou saisissez un code-barres (ex: 3560070513904) :")
+        submit_button = st.form_submit_button("Lancer la recherche 🚀")
     
-    if code_input:
+    # La recherche ne se déclenche que si on clique sur le bouton
+    if submit_button and code_input:
         df_local = load_data()
         p = fetch_off(code_input)
+        
+        # ... (le reste de ton code de recherche p, all_clones, etc.)
         
         # Secours local si OFF échoue
         if not p and not df_local.empty:
