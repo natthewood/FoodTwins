@@ -30,10 +30,59 @@ with col_head2:
     st.markdown("#### Parce que la vie devrait être moins chère")
 
 # --- FONCTIONS ---
+# --- 1. MODIFICATION DE LA FONCTION (plus robuste) ---
 def highlight_diff(base, target):
-    b_list = [x.strip().lower() for x in re.split(r'[,;]', str(base))]
-    t_list = [x.strip() for x in re.split(r'[,;]', str(target))]
-    return ", ".join([f"<span class='diff-red'>{i}</span>" if i.lower() not in b_list else i for i in t_list])
+    # On nettoie et on sépare les ingrédients par virgule
+    b_list = [x.strip().lower() for x in re.split(r'[,;.]', str(base)) if x.strip()]
+    t_list = [x.strip() for x in re.split(r'[,;.]', str(target)) if x.strip()]
+    
+    # On crée une liste de mots en rouge pour ce qui n'est pas dans la base
+    highlighted = []
+    for item in t_list:
+        if item.lower() not in b_list:
+            highlighted.append(f"<span class='diff-red'>{item}</span>")
+        else:
+            highlighted.append(item)
+    return ", ".join(highlighted)
+
+# --- 2. DANS L'ONGLET RECHERCHE (Affichage du produit principal) ---
+if p:
+    # ... (bloc col_img / col_info existant)
+    
+    # AJOUT : Affichage des ingrédients du produit scanné
+    with st.expander("📄 Voir la liste complète des ingrédients du produit scanné"):
+        st.write(p['ing'])
+
+    if p['emb']:
+        # ... (recherche des clones)
+        
+        if clones:
+            st.divider()
+            st.markdown(f"### 💡 Alternatives trouvées ({len(clones)})")
+            
+            for c in clones[:10]:
+                if str(c['code']) != str(p['code']):
+                    score = int(difflib.SequenceMatcher(None, p['ing'], c['ing']).ratio() * 100)
+                    
+                    with st.container():
+                        st.markdown(f"""
+                        <div class="card">
+                            <h4 style="margin:0;">{c['nom']} ({c['marque']})</h4>
+                            <p style="margin:5px 0;">Ressemblance : <b>{score}%</b></p>
+                            {get_badges(c['ing'])}
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        # MODIFICATION ICI : On affiche les deux listes pour comparer
+                        with st.expander("🔍 Comparer les recettes en détail"):
+                            col_base, col_clone = st.columns(2)
+                            with col_base:
+                                st.caption("Recette originale")
+                                st.write(p['ing'])
+                            with col_clone:
+                                st.caption("Recette du clone (en rouge : ce qui change)")
+                                diff_html = highlight_diff(p['ing'], c['ing'])
+                                st.markdown(f"<div style='font-size:0.9em;'>{diff_html}</div>", unsafe_allow_html=True)
 
 def get_badges(ingredients):
     badges = ""
