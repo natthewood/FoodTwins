@@ -26,7 +26,7 @@ with col_logo:
         st.markdown("## 👥")
 with col_titre:
     st.title("TwinFood")
-    st.markdown("##### Parce que la vie devrait être moins chère!")
+    st.markdown("##### Parce que la vie devrait être moins chère !")
 
 # --- FONCTIONS ---
 @st.cache_data(ttl=5)
