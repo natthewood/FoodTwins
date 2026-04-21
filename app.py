@@ -47,7 +47,7 @@ def get_badges(ingredients):
     
     # 1. LISTE ÉLARGIE POUR LE PORC
     # On cherche ces racines de mots. "lardon" trouvera "lardons", "jambon" trouvera "jambonné"
-    pork_terms = ["porc", "jambon", "lardon", "salami", "chorizo", "pancetta", "cochon", "suidés", "Porc", "Jambon", "Lardon", "Salami", "Chorizo", "Pancetta", "Cochon", "Suidés"]
+    pork_terms = ["porc", "jambon", "lardon", "salami", "chorizo", "pancetta", "cochon", "suidés"]
     
     # Si AUCUN de ces mots n'est présent, ALORS c'est sans porc
     if not any(word in ing_low for word in pork_terms):
