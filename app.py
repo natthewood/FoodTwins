@@ -24,10 +24,10 @@ st.markdown("""
 @st.cache_data
 def load_data():
     try:
-        # Assure-toi que le nom du fichier est exact
-        df = pd.read_csv("produits.csv", dtype=str).fillna("")
+        # Utilisation du nom de ton fichier enrichi
+        df = pd.read_csv("base_produits_5000_enrichie.csv", dtype=str).fillna("")
         df['code'] = df['code'].str.strip()
-        # Conversion numérique pour les tris et affichages
+        # Conversion numérique pour les calculs
         for col in ['sucre', 'sel', 'energie_100g']:
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
@@ -49,6 +49,8 @@ def get_badges_html(ingredients):
 df = load_data()
 
 st.title("🔬 CloneDetector Pro")
+st.markdown("### Comparaison stricte par type de produit")
+
 barcode = st.text_input("Scannez ou saisissez un code-barres (ex: 3998754976027) :").strip()
 
 if barcode:
@@ -57,9 +59,8 @@ if barcode:
     if not res.empty:
         p = res.iloc[0]
         
-        # --- AFFICHAGE PRODUIT PRINCIPAL ---
+        # --- PRODUIT PRINCIPAL ---
         col1, col2 = st.columns([1, 2])
-        
         with col1:
             if p['image_url']:
                 st.image(p['image_url'], use_container_width=True)
@@ -67,11 +68,10 @@ if barcode:
                 st.info("📷 Image non disponible")
 
         with col2:
-            st.write(f"**{p['marque']}**")
+            st.write(f"**{p['marque']}** | {p['categorie']}")
             st.header(p['nom'])
             
-            # Nutriscore et Nova
-            ns = p['nutriscore'].upper()
+            ns = str(p['nutriscore']).upper()
             st.markdown(f"""
                 <span class="badge nutri-{ns}">Nutri-Score {ns}</span>
                 <span class="nova">NOVA {p['nova']}</span>
@@ -79,31 +79,32 @@ if barcode:
             """, unsafe_allow_html=True)
             
             st.info(f"🏭 **Usine :** {p['emb']} ({p['usine_lieu']})")
-            
-            with st.expander("Voir les détails nutritionnels"):
-                c_a, c_b, c_c = st.columns(3)
-                c_a.metric("Énergie", f"{p['energie_100g']} kcal")
-                c_b.metric("Sucre", f"{p['sucre']}g")
-                c_c.metric("Sel", f"{p['sel']}g")
 
-        # --- LOGIQUE DE CLONES ---
-        clones = df[(df['emb'] == p['emb']) & (df['categorie'] == p['categorie']) & (df['code'] != barcode)]
+        # --- LOGIQUE DE CLONES FILTRÉE PAR CATÉGORIE ---
+        # On cherche : même usine (EMB) ET même catégorie exacte
+        clones = df[
+            (df['emb'] == p['emb']) & 
+            (df['categorie'] == p['categorie']) & 
+            (df['code'] != barcode)
+        ]
         
         if not clones.empty:
             st.markdown("---")
-            st.subheader(f"💡 {len(clones)} Alternatives trouvées (Même usine)")
+            st.subheader(f"💡 {len(clones)} Alternatives de type '{p['categorie']}'")
             
             for _, c in clones.head(10).iterrows():
+                # Calcul ressemblance ingrédients
                 score_text = difflib.SequenceMatcher(None, str(p['ingredients']), str(c['ingredients'])).ratio()
                 pct = int(score_text * 100)
                 
                 with st.expander(f"✅ {c['marque']} - {c['nom']} ({pct}% de ressemblance)"):
                     ca, cb = st.columns([1, 2])
                     with ca:
-                        if c['image_url']: st.image(c['image_url'], width=150)
-                        st.markdown(f'<span class="badge nutri-{c["nutriscore"].upper()}">Score {c["nutriscore"].upper()}</span>', unsafe_allow_html=True)
+                        if c['image_url']: st.image(c['image_url'], width=120)
+                        st.markdown(f'<span class="badge nutri-{str(c["nutriscore"]).upper()}">Score {str(c["nutriscore"]).upper()}</span>', unsafe_allow_html=True)
                     with cb:
                         st.write(f"**Ingrédients :** {c['ingredients']}")
-                        st.write(f"**Sucre :** {c['sucre']}g | **Énergie :** {c['energie_100g']} kcal")
+                        diff_sucre = float(c['sucre']) - float(p['sucre'])
+                        st.write(f"**Sucre :** {c['sucre']}g ({'+' if diff_sucre > 0 else ''}{round(diff_sucre,1)}g par rapport au scan)")
     else:
-        st.error("Produit non répertorié. Testez avec : 3998754976027")
+        st.error("Produit non répertorié.")
