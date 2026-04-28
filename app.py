@@ -4,7 +4,7 @@ import difflib
 import re
 
 # --- CONFIGURATION ---
-st.set_page_config(page_title="CloneDetector Ultra", page_icon="🔬", layout="wide")
+st.set_page_config(page_title="FoodTwins", page_icon="🔬", layout="wide")
 
 # --- STYLE CSS ---
 st.markdown("""
