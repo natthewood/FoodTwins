@@ -7,10 +7,10 @@ import re
 # --- CONFIGURATION ---
 st.set_page_config(page_title="CloneDetector Ultra", page_icon="🔬", layout="wide")
 
-# --- STYLE CSS POUR LES BADGES ---
+# --- STYLE CSS ---
 st.markdown("""
     <style>
-    .badge { padding: 4px 10px; border-radius: 10px; font-weight: bold; margin-right: 5px; }
+    .badge { padding: 4px 10px; border-radius: 10px; font-weight: bold; margin-right: 5px; display: inline-block; margin-bottom: 5px; }
     .vegan { background-color: #2ecc71; color: white; }
     .no-pork { background-color: #f1c40f; color: black; }
     .has-pork { background-color: #e74c3c; color: white; }
@@ -23,26 +23,29 @@ def load_data():
     try:
         df = pd.read_csv("produits.csv", dtype=str).fillna("")
         df['code'] = df['code'].str.strip()
-        # Conversion du sucre en nombre pour les calculs
         df['sucre'] = pd.to_numeric(df['sucre'], errors='coerce').fillna(0)
         return df
     except: return pd.DataFrame()
 
 def detect_additives(text):
-    # Cherche les codes type E250, E202...
-    return re.findall(r'E\d{3,4}', text.upper())
+    # Extrait les codes E-numéros (ex: E250, E450)
+    return set(re.findall(r'E\d{3,4}', text.upper()))
 
-def get_badges(ingredients):
+def get_badges_html(ingredients):
     badges = ""
     ing_low = ingredients.lower()
+    
+    # Badge Porc
     if "porc" not in ing_low and "lard" not in ing_low:
         badges += '<span class="badge no-pork">🚫 🐷 Sans Porc</span>'
     else:
         badges += '<span class="badge has-pork">🐷 Contient du Porc</span>'
     
-    if "viande" not in ing_low and "poisson" not in ing_low and "poulet" not in ing_low:
+    # Badge Végétarien
+    if not any(x in ing_low for x in ["viande", "poisson", "poulet", "boeuf", "jambon"]):
         badges += '<span class="badge vegan">🍃 Végétarien</span>'
     
+    # Badge Additifs
     additifs = detect_additives(ingredients)
     if additifs:
         badges += f'<span class="badge additive">🧪 {len(additifs)} Additifs</span>'
@@ -52,61 +55,62 @@ def get_badges(ingredients):
 # --- CHARGEMENT ---
 df = load_data()
 
-# --- SIDEBAR (FILTRES) ---
-st.sidebar.header("🔍 Filtres de recherche")
-cat_list = ["Tous"] + sorted(df['categorie'].unique().tolist())
-selected_cat = st.sidebar.selectbox("Filtrer par type de produit", cat_list)
-
-# --- INTERFACE ---
 st.title("🔬 CloneDetector Ultra")
-st.markdown("### L'intelligence artificielle au service de votre panier")
+st.markdown("### Analyse croisée : Usines, Additifs et Catégories")
 
-barcode = st.text_input("Scannez ou saisissez un code-barres (ex: 3200849007378) :").strip()
+barcode = st.text_input("Scannez ou saisissez un code-barres :").strip()
 
 if barcode:
-    # Application du filtre catégorie si actif
-    if selected_cat != "Tous":
-        temp_df = df[df['categorie'] == selected_cat]
-    else:
-        temp_df = df
-
-    res = temp_df[temp_df['code'] == barcode]
+    # Recherche du produit principal
+    res = df[df['code'] == barcode]
     
     if not res.empty:
         p = res.iloc[0]
-        
-        # Affichage Produit Principal
         st.markdown(f"## {p['nom']}")
-        st.markdown(get_badges(p['ingredients']), unsafe_allow_html=True)
+        st.markdown(get_badges_html(p['ingredients']), unsafe_allow_html=True)
         
         c1, c2, c3 = st.columns(3)
         c1.metric("Sucre (100g)", f"{p['sucre']}g")
         c2.info(f"🏭 Usine : {p['emb']}")
         add_p = detect_additives(p['ingredients'])
-        c3.warning(f"🧪 Additifs : {', '.join(add_p) if add_p else 'Aucun'}")
+        c3.warning(f"🧪 Conservateurs : {', '.join(add_p) if add_p else 'Aucun'}")
 
-        # RECHERCHE DE CLONES
-        clones = df[(df['emb'] == p['emb']) & (df['code'] != barcode)]
+        # --- LOGIQUE DE CLONES FILTRÉE ---
+        # 1. Même usine (EMB)
+        # 2. MÊME CATÉGORIE (pour éviter de comparer yaourt et pizza)
+        # 3. Code différent
+        clones = df[
+            (df['emb'] == p['emb']) & 
+            (df['categorie'] == p['categorie']) & 
+            (df['code'] != barcode)
+        ]
         
         if not clones.empty:
             st.markdown("---")
-            st.subheader(f"💡 {len(clones)} Alternatives trouvées (Même usine)")
+            st.subheader(f"💡 {len(clones)} Alternatives de même type trouvées")
             
             for _, c in clones.head(10).iterrows():
-                # Calcul de ressemblance
-                score_base = difflib.SequenceMatcher(None, p['ingredients'], c['ingredients']).ratio()
+                # Calcul de ressemblance textuelle
+                score_text = difflib.SequenceMatcher(None, p['ingredients'], c['ingredients']).ratio()
                 
-                # Bonus/Malus si additifs identiques
+                # Analyse des additifs
                 add_c = detect_additives(c['ingredients'])
-                if add_p == add_c: score_base += 0.05
+                common_additives = add_p.intersection(add_c)
                 
-                final_score = min(int(score_base * 100), 100)
+                # Bonus de score si les additifs sont identiques
+                score_final = score_text
+                if add_p == add_c: score_final += 0.1
                 
-                with st.expander(f"✅ {c['nom']} — Ressemblance : {final_score}%"):
+                pct = min(int(score_final * 100), 100)
+                
+                with st.expander(f"✅ {c['nom']} — Ressemblance : {pct}%"):
                     col_a, col_b = st.columns(2)
                     diff_sucre = float(c['sucre']) - float(p['sucre'])
-                    col_a.write(f"**Sucre :** {c['sucre']}g ({'+' if diff_sucre > 0 else ''}{round(diff_sucre,1)}g)")
-                    col_b.markdown(get_badges(c['ingredients']), unsafe_allow_html=True)
-                    st.write(f"**Ingrédients :** {c['ingredients']}")
+                    col_a.write(f"**Écart Sucre :** {round(diff_sucre,1)}g")
+                    col_b.markdown(get_badges_html(c['ingredients']), unsafe_allow_html=True)
+                    
+                    st.write(f"**Liste des ingrédients :** {c['ingredients']}")
+                    if add_c:
+                        st.write(f"**Additifs détectés :** {', '.join(add_c)}")
     else:
-        st.error("Produit introuvable. Vérifiez que le filtre 'Catégorie' correspond au produit.")
+        st.error("Produit non répertorié dans la base locale.")
