@@ -47,7 +47,12 @@ def get_badges_html(ingredients):
 # --- CHARGEMENT ---
 df = load_data()
 
-st.title("🔬 FoodTwins")
+st.sidebar.image("logo.png", use_container_width=True)
+col_logo, col_titre = st.columns([1, 5])
+with col_logo:
+    st.image("logo.png", width=80)
+with col_titre:
+    st.title("FoodTwins")
 st.markdown("### 🔎 Recherche de jumeaux industriels par Nom")
 
 barcode = st.text_input("Scannez ou saisissez un code-barres (ex: 3998754976027) :").strip()
