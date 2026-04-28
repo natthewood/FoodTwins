@@ -25,7 +25,7 @@ st.markdown("""
 def load_data():
     try:
         # Utilisation du nom de ton fichier enrichi
-        df = pd.read_csv("base_produits_5000_enrichie.csv", dtype=str).fillna("")
+        df = pd.read_csv("produits.csv", dtype=str).fillna("")
         df['code'] = df['code'].str.strip()
         # Conversion numérique pour les calculs
         for col in ['sucre', 'sel', 'energie_100g']:
