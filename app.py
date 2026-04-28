@@ -47,7 +47,7 @@ def get_badges_html(ingredients):
 # --- CHARGEMENT ---
 df = load_data()
 
-st.title("🔬 CloneDetector Pro")
+st.title("🔬 FoodTwins")
 st.markdown("### 🔎 Recherche de jumeaux industriels par Nom")
 
 barcode = st.text_input("Scannez ou saisissez un code-barres (ex: 3998754976027) :").strip()
