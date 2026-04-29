@@ -32,7 +32,7 @@ from st_gsheets_connection import GSheetConnection
 def load_data():
     conn = st.connection("gsheets", type=GSheetConnection)
     # Remplacer par l'URL de ton Google Sheet
-    url = "https://docs.google.com/spreadsheets/d/TON_ID_ICI/edit#gid=0"
+    url = "https://docs.google.com/spreadsheets/d/13OLqRmOHjWcaJoHsgHXexOXYiU3TGHQaHKR1tCKyChQ/edit?gid=0#gid=0"
     df = conn.read(spreadsheet=url, ttl="10m") # ttl = cache de 10 minutes
     return df
 
