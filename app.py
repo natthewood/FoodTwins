@@ -53,7 +53,7 @@ with col_logo:
     st.image("logo.png", width=80)
 with col_titre:
     st.title("FoodTwins")
-st.markdown("*« Ne payez plus le logo, payez le produit. »*")
+st.caption("Ne payez plus le logo, payez le produit.")
 
 barcode = st.text_input("Scannez ou saisissez un code-barres (ex: 3998754976027) :").strip()
 
