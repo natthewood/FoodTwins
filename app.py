@@ -11,7 +11,7 @@ from streamlit_gsheets import GSheetsConnection
 # --- CONFIGURATION ---
 st.set_page_config(page_title="FoodTwins", page_icon="🔬", layout="wide")
 
-# URL de ton Google Sheet
+# URL de ton Google Sheet (Sert de référence pour la lecture et l'écriture)
 SHEET_URL = "https://docs.google.com/spreadsheets/d/13OLqRmOHjWcaJoHsgHXexOXYiU3TGHQaHKR1tCKyChQ/edit?usp=sharing"
 
 # --- STYLE CSS ---
@@ -32,15 +32,17 @@ st.markdown("""
 # --- FONCTIONS UTILES ---
 @st.cache_data(ttl=600) # Cache de 10 minutes
 def load_data():
- try:
-    conn = st.connection("gsheets", type=GSheetsConnection)
- try:
-    df = conn.read(spreadsheet="https://docs.google.com/spreadsheets/d/13OLqRmOHjWcaJoHsgHXexOXYiU3TGHQaHKR1tCKyChQ/edit?usp=sharing")
-    except Exception as e:
-        st.error(f"Erreur lors de la lecture du Google Sheet : {e}")
-        # Nettoyage basique des données
+    try:
+        # Initialisation de la connexion
+        conn = st.connection("gsheets", type=GSheetsConnection)
+        # Lecture avec l'URL spécifiée
+        df = conn.read(spreadsheet=SHEET_URL)
+        
+        # Nettoyage des données
         df = df.fillna("")
         df['code'] = df['code'].astype(str).str.strip()
+        
+        # Conversion numérique des colonnes critiques
         for col in ['sucre', 'sel', 'energie_100g']:
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
@@ -67,7 +69,8 @@ def get_badges_html(ingredients):
     return badges
 
 # --- CONNEXION ET CHARGEMENT ---
-conn = st.connection("https://docs.google.com/spreadsheets/d/13OLqRmOHjWcaJoHsgHXexOXYiU3TGHQaHKR1tCKyChQ/edit?usp=sharing", type=GSheetsConnection)
+# On crée l'objet connexion une seule fois pour tout le script
+conn = st.connection("gsheets", type=GSheetsConnection)
 df = load_data()
 
 # --- ENTÊTE ---
@@ -120,8 +123,9 @@ if barcode:
             """, unsafe_allow_html=True)
             st.info(f"🏭 **Usine :** {p['emb']} ({p.get('usine_lieu', 'Inconnue')})")
 
-        mots = [m for m in p['nom'].split() if len(m) > 3]
-        mot_cle = mots[0] if mots else p['nom']
+        # Recherche d'alternatives (clones)
+        mots = [m for m in str(p['nom']).split() if len(m) > 3]
+        mot_cle = mots[0] if mots else str(p['nom'])
 
         clones = df[
             (df['emb'] == p['emb']) & 
@@ -162,8 +166,8 @@ if barcode:
                 new_nutri = st.selectbox("Nutriscore", ["A", "B", "C", "D", "E"])
                 
                 if st.form_submit_button("Enregistrer sur Google Sheets"):
-                    # Création de la nouvelle ligne (Étape 4 intégrée)
-                    new_data = pd.DataFrame([{
+                    # Préparation de la nouvelle ligne
+                    new_line = {
                         "code": barcode,
                         "nom": new_nom,
                         "marque": new_marque,
@@ -171,12 +175,14 @@ if barcode:
                         "ingredients": new_ing,
                         "nutriscore": new_nutri,
                         "sucre": 0, "sel": 0, "energie_100g": 0
-                    }])
+                    }
                     
                     try:
-                        # Envoi vers Google Sheets
-                        conn.create(spreadsheet=SHEET_URL, data=new_data)
-                        st.success(f"✅ Produit '{new_nom}' ajouté à la base globale !")
-                        st.cache_data.clear() # On vide le cache pour actualiser
+                        # Mise à jour du Google Sheet : on ajoute la ligne au DataFrame actuel
+                        updated_df = pd.concat([df, pd.DataFrame([new_line])], ignore_index=True)
+                        conn.update(spreadsheet=SHEET_URL, data=updated_df)
+                        
+                        st.success(f"✅ Produit '{new_nom}' ajouté avec succès !")
+                        st.cache_data.clear() # On force le rechargement des données
                     except Exception as e:
                         st.error(f"Erreur d'écriture sur Google Sheets : {e}")
