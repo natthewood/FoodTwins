@@ -1,7 +1,7 @@
 streamlit
 pandas
+st-gsheets-connection
 opencv-python-headless
 pyzbar
 Pillow
 numpy
-st-gsheets-connection
