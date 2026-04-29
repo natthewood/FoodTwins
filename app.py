@@ -12,7 +12,7 @@ from streamlit_gsheets import GSheetsConnection
 st.set_page_config(page_title="FoodTwins", page_icon="🔬", layout="wide")
 
 # URL de ton Google Sheet
-SHEET_URL = "https://docs.google.com/spreadsheets/d/13OLqRmOHjWcaJoHsgHXexOXYiU3TGHQaHKR1tCKyChQ/edit?gid=0#gid=0"
+SHEET_URL = "https://docs.google.com/spreadsheets/d/13OLqRmOHjWcaJoHsgHXexOXYiU3TGHQaHKR1tCKyChQ/edit?usp=sharing"
 
 # --- STYLE CSS ---
 st.markdown("""
