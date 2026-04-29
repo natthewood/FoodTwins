@@ -33,7 +33,7 @@ st.markdown("""
 @st.cache_data(ttl=600) # Cache de 10 minutes
 def load_data():
     try:
-        conn = st.connection("gsheets", type=GSheetConnection)
+        conn = st.connection("gsheets", type=GSheetsConnection)
         df = conn.read(spreadsheet=SHEET_URL)
         # Nettoyage basique des données
         df = df.fillna("")
