@@ -1,0 +1,7 @@
+# .streamlit/secrets.toml
+[connections.gsheets]
+type = "service_account"
+project_id = "votre-id"
+private_key = "-----BEGIN PRIVATE KEY-----\n..."
+client_email = "votre-email@id.iam.gserviceaccount.com"
+# ... ajoutez le reste des champs du JSON ici
