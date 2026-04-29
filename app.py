@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 from PIL import Image
 from pyzbar.pyzbar import decode
-from st_gsheets_connection import GSheetConnection # Import déplacé ici
+from streamlit_gsheets import GSheetsConnection
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="FoodTwins", page_icon="🔬", layout="wide")
