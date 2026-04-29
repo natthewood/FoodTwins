@@ -129,7 +129,8 @@ if st.form_submit_button("Enregistrer le produit"):
     df.to_csv("produits.csv", index=False)
     
     st.success(f"Félicitations ! '{new_nom}' est maintenant enregistré définitivement.")
-        # --- LOGIQUE DE CLONES ---
+
+    # --- LOGIQUE DE CLONES ---
         mots = [m for m in p['nom'].split() if len(m) > 3]
         mot_cle = mots[0] if mots else p['nom']
 
