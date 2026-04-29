@@ -27,17 +27,14 @@ st.markdown("""
 
 # --- FONCTIONS UTILES ---
 @st.cache_data
+from st_gsheets_connection import GSheetConnection
+
 def load_data():
-    try:
-        df = pd.read_csv("produits.csv", dtype=str).fillna("")
-        df['code'] = df['code'].str.strip()
-        for col in ['sucre', 'sel', 'energie_100g']:
-            if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
-        return df
-    except Exception as e:
-        st.error(f"Erreur de chargement : {e}")
-        return pd.DataFrame()
+    conn = st.connection("gsheets", type=GSheetConnection)
+    # Remplacer par l'URL de ton Google Sheet
+    url = "https://docs.google.com/spreadsheets/d/TON_ID_ICI/edit#gid=0"
+    df = conn.read(spreadsheet=url, ttl="10m") # ttl = cache de 10 minutes
+    return df
 
 def scan_barcode(image):
     img_array = np.array(image)
