@@ -6,9 +6,13 @@ import cv2
 import numpy as np
 from PIL import Image
 from pyzbar.pyzbar import decode
+from st_gsheets_connection import GSheetConnection # Import déplacé ici
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="FoodTwins", page_icon="🔬", layout="wide")
+
+# URL de ton Google Sheet
+SHEET_URL = "https://docs.google.com/spreadsheets/d/13OLqRmOHjWcaJoHsgHXexOXYiU3TGHQaHKR1tCKyChQ/edit?gid=0#gid=0"
 
 # --- STYLE CSS ---
 st.markdown("""
@@ -26,15 +30,21 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- FONCTIONS UTILES ---
-@st.cache_data
-from st_gsheets_connection import GSheetConnection
-
+@st.cache_data(ttl=600) # Cache de 10 minutes
 def load_data():
-    conn = st.connection("gsheets", type=GSheetConnection)
-    # Remplacer par l'URL de ton Google Sheet
-    url = "https://docs.google.com/spreadsheets/d/13OLqRmOHjWcaJoHsgHXexOXYiU3TGHQaHKR1tCKyChQ/edit?gid=0#gid=0"
-    df = conn.read(spreadsheet=url, ttl="10m") # ttl = cache de 10 minutes
-    return df
+    try:
+        conn = st.connection("gsheets", type=GSheetConnection)
+        df = conn.read(spreadsheet=SHEET_URL)
+        # Nettoyage basique des données
+        df = df.fillna("")
+        df['code'] = df['code'].astype(str).str.strip()
+        for col in ['sucre', 'sel', 'energie_100g']:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+        return df
+    except Exception as e:
+        st.error(f"Erreur de chargement Google Sheets : {e}")
+        return pd.DataFrame()
 
 def scan_barcode(image):
     img_array = np.array(image)
@@ -53,13 +63,15 @@ def get_badges_html(ingredients):
         badges += '<span class="badge vegan">🍃 Végétarien</span>'
     return badges
 
-# --- CHARGEMENT ---
+# --- CONNEXION ET CHARGEMENT ---
+conn = st.connection("gsheets", type=GSheetConnection)
 df = load_data()
 
 # --- ENTÊTE ---
 col_logo, col_titre = st.columns([1, 5])
 with col_logo:
-    st.image("logo.png", width=80)
+    try: st.image("logo.png", width=80)
+    except: st.write("🔬")
 with col_titre:
     st.title("FoodTwins")
 st.markdown("<p style='color: gray; font-style: italic; font-size: 20px;'>« Ne payez plus le logo, payez le produit. »</p>", unsafe_allow_html=True)
@@ -129,8 +141,10 @@ if barcode:
                         st.markdown(f'<span class="badge nutri-{str(c["nutriscore"]).upper()}">Score {str(c["nutriscore"]).upper()}</span>', unsafe_allow_html=True)
                     with cb:
                         st.write(f"**Ingrédients :** {c['ingredients']}")
-                        diff_sucre = float(c['sucre']) - float(p['sucre'])
-                        st.write(f"**Sucre :** {c['sucre']}g ({'+' if diff_sucre > 0 else ''}{round(diff_sucre,1)}g)")
+                        try:
+                            diff_sucre = float(c['sucre']) - float(p['sucre'])
+                            st.write(f"**Sucre :** {c['sucre']}g ({'+' if diff_sucre > 0 else ''}{round(diff_sucre,1)}g)")
+                        except: st.write(f"**Sucre :** {c['sucre']}g")
     
     else:
         st.error(f"Le produit {barcode} n'est pas encore dans notre base.")
@@ -144,20 +158,22 @@ if barcode:
                 new_ing = st.text_area("Liste des ingrédients")
                 new_nutri = st.selectbox("Nutriscore", ["A", "B", "C", "D", "E"])
                 
-                if st.form_submit_button("Enregistrer définitivement"):
-                    # Création de la nouvelle ligne
-                    new_row = pd.DataFrame([{
+                if st.form_submit_button("Enregistrer sur Google Sheets"):
+                    # Création de la nouvelle ligne (Étape 4 intégrée)
+                    new_data = pd.DataFrame([{
                         "code": barcode,
                         "nom": new_nom,
                         "marque": new_marque,
                         "emb": new_emb,
                         "ingredients": new_ing,
                         "nutriscore": new_nutri,
-                        "sucre": 0, "sel": 0, "energie_100g": 0 # Valeurs par défaut
+                        "sucre": 0, "sel": 0, "energie_100g": 0
                     }])
                     
-                    # Sauvegarde réelle dans le fichier CSV
-                    new_row.to_csv("produits.csv", mode='a', header=False, index=False)
-                    
-                    st.success(f"Produit '{new_nom}' ajouté au fichier ! Videz le cache ou relancez pour le voir.")
-                    st.cache_data.clear() # Force le rechargement de la base au prochain scan
+                    try:
+                        # Envoi vers Google Sheets
+                        conn.create(spreadsheet=SHEET_URL, data=new_data)
+                        st.success(f"✅ Produit '{new_nom}' ajouté à la base globale !")
+                        st.cache_data.clear() # On vide le cache pour actualiser
+                    except Exception as e:
+                        st.error(f"Erreur d'écriture sur Google Sheets : {e}")
