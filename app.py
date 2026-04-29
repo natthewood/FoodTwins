@@ -66,7 +66,7 @@ def get_badges_html(ingredients):
     return badges
 
 # --- CONNEXION ET CHARGEMENT ---
-conn = st.connection(""https://docs.google.com/spreadsheets/d/13OLqRmOHjWcaJoHsgHXexOXYiU3TGHQaHKR1tCKyChQ/edit?usp=sharing"", type=GSheetsConnection)
+conn = st.connection("https://docs.google.com/spreadsheets/d/13OLqRmOHjWcaJoHsgHXexOXYiU3TGHQaHKR1tCKyChQ/edit?usp=sharing", type=GSheetsConnection)
 df = load_data()
 
 # --- ENTÊTE ---
