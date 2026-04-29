@@ -1,6 +1,6 @@
 streamlit
 pandas
-st-gsheets-connection
+st-gsheets-connection==0.0.3
 opencv-python-headless
 pyzbar
 Pillow
