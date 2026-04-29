@@ -2,6 +2,10 @@ import streamlit as st
 import pandas as pd
 import difflib
 import re
+import cv2
+import numpy as np
+from PIL import Image
+from pyzbar.pyzbar import decode
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="FoodTwins", page_icon="🔬", layout="wide")
@@ -21,10 +25,10 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+# --- FONCTIONS UTILES ---
 @st.cache_data
 def load_data():
     try:
-        # On charge ton fichier enrichi
         df = pd.read_csv("produits.csv", dtype=str).fillna("")
         df['code'] = df['code'].str.strip()
         for col in ['sucre', 'sel', 'energie_100g']:
@@ -34,6 +38,15 @@ def load_data():
     except Exception as e:
         st.error(f"Erreur de chargement : {e}")
         return pd.DataFrame()
+
+def scan_barcode(image):
+    """Décode le code-barres d'une image camera_input"""
+    img_array = np.array(image)
+    gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+    detected_barcodes = decode(gray)
+    for barcode in detected_barcodes:
+        return barcode.data.decode('utf-8')
+    return None
 
 def get_badges_html(ingredients):
     badges = ""
@@ -47,7 +60,7 @@ def get_badges_html(ingredients):
 # --- CHARGEMENT ---
 df = load_data()
 
-st.sidebar.image("logo.png", use_container_width=True)
+# --- ENTÊTE ---
 col_logo, col_titre = st.columns([1, 5])
 with col_logo:
     st.image("logo.png", width=80)
@@ -55,8 +68,26 @@ with col_titre:
     st.title("FoodTwins")
 st.markdown("<p style='color: gray; font-style: italic; font-size: 20px;'>« Ne payez plus le logo, payez le produit. »</p>", unsafe_allow_html=True)
 
-barcode = st.text_input("Scannez ou saisissez un code-barres (ex: 3998754976027) :").strip()
+# --- ZONE DE SAISIE ET SCAN ---
+barcode = ""
+tabs = st.tabs(["⌨️ Saisie Manuelle", "📸 Scanner"])
 
+with tabs[0]:
+    barcode_manual = st.text_input("Entrez le code-barres :", key="manual").strip()
+    if barcode_manual:
+        barcode = barcode_manual
+
+with tabs[1]:
+    img_file = st.camera_input("Placez le code-barres face à la caméra")
+    if img_file:
+        scanned_code = scan_barcode(Image.open(img_file))
+        if scanned_code:
+            barcode = scanned_code
+            st.success(f"Code détecté : {barcode}")
+        else:
+            st.warning("Code-barres non détecté. Essayez de rapprocher le produit.")
+
+# --- AFFICHAGE DES RÉSULTATS ---
 if barcode:
     res = df[df['code'] == barcode]
     
@@ -80,12 +111,10 @@ if barcode:
             """, unsafe_allow_html=True)
             st.info(f"🏭 **Usine :** {p['emb']} ({p['usine_lieu']})")
 
-        # --- LOGIQUE DE CLONES PAR NOM ---
-        # On prend le premier mot significatif du nom (plus de 3 lettres)
+        # --- LOGIQUE DE CLONES ---
         mots = [m for m in p['nom'].split() if len(m) > 3]
         mot_cle = mots[0] if mots else p['nom']
 
-        # Filtre : Même usine ET le nom contient le mot clé (ex: "Rillettes")
         clones = df[
             (df['emb'] == p['emb']) & 
             (df['nom'].str.contains(mot_cle, case=False, na=False)) & 
@@ -97,7 +126,6 @@ if barcode:
             st.subheader(f"💡 {len(clones)} Alternatives détectées pour '{mot_cle}'")
             
             for _, c in clones.head(10).iterrows():
-                # Calcul ressemblance sur les ingrédients
                 score_text = difflib.SequenceMatcher(None, str(p['ingredients']), str(c['ingredients'])).ratio()
                 pct = int(score_text * 100)
                 
@@ -110,5 +138,20 @@ if barcode:
                         st.write(f"**Ingrédients :** {c['ingredients']}")
                         diff_sucre = float(c['sucre']) - float(p['sucre'])
                         st.write(f"**Sucre :** {c['sucre']}g ({'+' if diff_sucre > 0 else ''}{round(diff_sucre,1)}g)")
+    
     else:
-        st.error("Produit inconnu dans la base locale.")
+        # --- PRODUIT INCONNU ET AJOUT MANUEL ---
+        st.error(f"Le produit {barcode} n'est pas encore dans notre base.")
+        st.info("💡 Aidez-nous à enrichir la base en ajoutant ce produit ci-dessous.")
+        
+        with st.expander("➕ Ajouter ce produit manuellement"):
+            with st.form("ajout_produit"):
+                new_nom = st.text_input("Nom du produit (ex: Rillettes de Porc)")
+                new_marque = st.text_input("Marque (ex: Marque Repère)")
+                new_emb = st.text_input("Code Usine EMB (ex: FR 72.300.001 CE)")
+                new_ing = st.text_area("Liste des ingrédients")
+                new_nutri = st.selectbox("Nutriscore", ["A", "B", "C", "D", "E"])
+                
+                if st.form_submit_button("Enregistrer le produit"):
+                    # Ici on simule l'ajout (pour une vraie base, il faudrait sauver dans le CSV)
+                    st.success(f"Merci ! '{new_nom}' a été soumis pour vérification.")
