@@ -40,7 +40,6 @@ def load_data():
         return pd.DataFrame()
 
 def scan_barcode(image):
-    """Décode le code-barres d'une image camera_input"""
     img_array = np.array(image)
     gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
     detected_barcodes = decode(gray)
@@ -93,11 +92,9 @@ if barcode:
     
     if not res.empty:
         p = res.iloc[0]
-        
-        # --- AFFICHAGE PRODUIT SCANNE ---
         col1, col2 = st.columns([1, 2])
         with col1:
-            if p['image_url']: st.image(p['image_url'], use_container_width=True)
+            if p.get('image_url'): st.image(p['image_url'], use_container_width=True)
             else: st.info("📷 Image non disponible")
 
         with col2:
@@ -106,12 +103,11 @@ if barcode:
             ns = str(p['nutriscore']).upper()
             st.markdown(f"""
                 <span class="badge nutri-{ns}">Nutri-Score {ns}</span>
-                <span class="nova">NOVA {p['nova']}</span>
+                <span class="nova">{p.get('nova', '?')}</span>
                 {get_badges_html(p['ingredients'])}
             """, unsafe_allow_html=True)
-            st.info(f"🏭 **Usine :** {p['emb']} ({p['usine_lieu']})")
+            st.info(f"🏭 **Usine :** {p['emb']} ({p.get('usine_lieu', 'Inconnue')})")
 
-    # --- LOGIQUE DE CLONES ---
         mots = [m for m in p['nom'].split() if len(m) > 3]
         mot_cle = mots[0] if mots else p['nom']
 
@@ -132,7 +128,7 @@ if barcode:
                 with st.expander(f"✅ {c['marque']} - {c['nom']} ({pct}% de ressemblance)"):
                     ca, cb = st.columns([1, 2])
                     with ca:
-                        if c['image_url']: st.image(c['image_url'], width=120)
+                        if c.get('image_url'): st.image(c['image_url'], width=120)
                         st.markdown(f'<span class="badge nutri-{str(c["nutriscore"]).upper()}">Score {str(c["nutriscore"]).upper()}</span>', unsafe_allow_html=True)
                     with cb:
                         st.write(f"**Ingrédients :** {c['ingredients']}")
@@ -140,18 +136,31 @@ if barcode:
                         st.write(f"**Sucre :** {c['sucre']}g ({'+' if diff_sucre > 0 else ''}{round(diff_sucre,1)}g)")
     
     else:
-        # --- PRODUIT INCONNU ET AJOUT MANUEL ---
         st.error(f"Le produit {barcode} n'est pas encore dans notre base.")
         st.info("💡 Aidez-nous à enrichir la base en ajoutant ce produit ci-dessous.")
         
         with st.expander("➕ Ajouter ce produit manuellement"):
             with st.form("ajout_produit"):
-                new_nom = st.text_input("Nom du produit (ex: Rillettes de Porc)")
-                new_marque = st.text_input("Marque (ex: Marque Repère)")
-                new_emb = st.text_input("Code Usine EMB (ex: FR 72.300.001 CE)")
+                new_nom = st.text_input("Nom du produit")
+                new_marque = st.text_input("Marque")
+                new_emb = st.text_input("Code Usine EMB")
                 new_ing = st.text_area("Liste des ingrédients")
                 new_nutri = st.selectbox("Nutriscore", ["A", "B", "C", "D", "E"])
                 
-                if st.form_submit_button("Enregistrer le produit"):
-                    # Ici on simule l'ajout (pour une vraie base, il faudrait sauver dans le CSV)
-                    st.success(f"Merci ! '{new_nom}' a été soumis pour vérification.")
+                if st.form_submit_button("Enregistrer définitivement"):
+                    # Création de la nouvelle ligne
+                    new_row = pd.DataFrame([{
+                        "code": barcode,
+                        "nom": new_nom,
+                        "marque": new_marque,
+                        "emb": new_emb,
+                        "ingredients": new_ing,
+                        "nutriscore": new_nutri,
+                        "sucre": 0, "sel": 0, "energie_100g": 0 # Valeurs par défaut
+                    }])
+                    
+                    # Sauvegarde réelle dans le fichier CSV
+                    new_row.to_csv("produits.csv", mode='a', header=False, index=False)
+                    
+                    st.success(f"Produit '{new_nom}' ajouté au fichier ! Videz le cache ou relancez pour le voir.")
+                    st.cache_data.clear() # Force le rechargement de la base au prochain scan
