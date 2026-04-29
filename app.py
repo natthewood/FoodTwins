@@ -34,7 +34,7 @@ st.markdown("""
 def load_data():
     try:
         conn = st.connection("gsheets", type=GSheetsConnection)
-try:
+    try:
     df = conn.read(spreadsheet="https://docs.google.com/spreadsheets/d/13OLqRmOHjWcaJoHsgHXexOXYiU3TGHQaHKR1tCKyChQ/edit?usp=sharing")
 except Exception as e:
     st.error(f"Erreur lors de la lecture du Google Sheet : {e}")
