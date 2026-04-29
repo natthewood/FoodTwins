@@ -111,6 +111,24 @@ if barcode:
             """, unsafe_allow_html=True)
             st.info(f"🏭 **Usine :** {p['emb']} ({p['usine_lieu']})")
 
+if st.form_submit_button("Enregistrer le produit"):
+    # 1. Créer un dictionnaire avec les nouvelles infos
+    new_row = {
+        "code": barcode,
+        "nom": new_nom,
+        "marque": new_marque,
+        "emb": new_emb,
+        "ingredients": new_ing,
+        "nutriscore": new_nutri
+    }
+    
+    # 2. L'ajouter au DataFrame actuel
+    df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+    
+    # 3. SAUVEGARDE PHYSIQUE DANS LE FICHIER
+    df.to_csv("produits.csv", index=False)
+    
+    st.success(f"Félicitations ! '{new_nom}' est maintenant enregistré définitivement.")
         # --- LOGIQUE DE CLONES ---
         mots = [m for m in p['nom'].split() if len(m) > 3]
         mot_cle = mots[0] if mots else p['nom']
