@@ -11,7 +11,7 @@ from streamlit_gsheets import GSheetsConnection
 # --- CONFIGURATION ---
 st.set_page_config(page_title="FoodTwins", page_icon="🔬", layout="wide")
 
-# URL de ton Google Sheet (Sert de référence pour la lecture et l'écriture)
+# URL de ton Google Sheet
 SHEET_URL = "https://docs.google.com/spreadsheets/d/13OLqRmOHjWcaJoHsgHXexOXYiU3TGHQaHKR1tCKyChQ/edit?usp=sharing"
 
 # --- STYLE CSS ---
@@ -33,18 +33,22 @@ st.markdown("""
 @st.cache_data(ttl=600) # Cache de 10 minutes
 def load_data():
     try:
-        # Initialisation de la connexion
+        # Initialisation de la connexion via les secrets Streamlit
         conn = st.connection("gsheets", type=GSheetsConnection)
-        # Lecture avec l'URL spécifiée
+        # Lecture du fichier
         df = conn.read(spreadsheet=SHEET_URL)
         
-        # Nettoyage des données
+        # --- NETTOYAGE DES DONNÉES (CORRECTION APOSTROPHE) ---
         df = df.fillna("")
-        df['code'] = df['code'].astype(str).str.strip()
         
-        # Conversion numérique des colonnes critiques
+        # On transforme en texte, on enlève les espaces ET on supprime l'apostrophe résiduelle
+        df['code'] = df['code'].astype(str).str.strip().str.replace("'", "", regex=False)
+        
+        # Nettoyage des colonnes numériques
         for col in ['sucre', 'sel', 'energie_100g']:
             if col in df.columns:
+                # Remplace la virgule par un point pour la conversion numérique
+                df[col] = df[col].astype(str).str.replace(',', '.')
                 df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
         return df
     except Exception as e:
@@ -69,7 +73,6 @@ def get_badges_html(ingredients):
     return badges
 
 # --- CONNEXION ET CHARGEMENT ---
-# On crée l'objet connexion une seule fois pour tout le script
 conn = st.connection("gsheets", type=GSheetsConnection)
 df = load_data()
 
@@ -103,7 +106,9 @@ with tabs[1]:
 
 # --- AFFICHAGE DES RÉSULTATS ---
 if barcode:
-    res = df[df['code'] == barcode]
+    # On s'assure que le code cherché est aussi nettoyé
+    search_code = str(barcode).strip().replace("'", "")
+    res = df[df['code'] == search_code]
     
     if not res.empty:
         p = res.iloc[0]
@@ -118,7 +123,7 @@ if barcode:
             ns = str(p['nutriscore']).upper()
             st.markdown(f"""
                 <span class="badge nutri-{ns}">Nutri-Score {ns}</span>
-                <span class="nova">{p.get('nova', '?')}</span>
+                <span class="nova">{int(p['nova']) if p.get('nova') else '?'}</span>
                 {get_badges_html(p['ingredients'])}
             """, unsafe_allow_html=True)
             st.info(f"🏭 **Usine :** {p['emb']} ({p.get('usine_lieu', 'Inconnue')})")
@@ -130,7 +135,7 @@ if barcode:
         clones = df[
             (df['emb'] == p['emb']) & 
             (df['nom'].str.contains(mot_cle, case=False, na=False)) & 
-            (df['code'] != barcode)
+            (df['code'] != search_code)
         ]
         
         if not clones.empty:
@@ -166,9 +171,9 @@ if barcode:
                 new_nutri = st.selectbox("Nutriscore", ["A", "B", "C", "D", "E"])
                 
                 if st.form_submit_button("Enregistrer sur Google Sheets"):
-                    # Préparation de la nouvelle ligne
+                    # On stocke le nouveau code AVEC l'apostrophe pour rester cohérent avec ton fichier
                     new_line = {
-                        "code": barcode,
+                        "code": f"'{barcode}", 
                         "nom": new_nom,
                         "marque": new_marque,
                         "emb": new_emb,
@@ -178,11 +183,9 @@ if barcode:
                     }
                     
                     try:
-                        # Mise à jour du Google Sheet : on ajoute la ligne au DataFrame actuel
                         updated_df = pd.concat([df, pd.DataFrame([new_line])], ignore_index=True)
                         conn.update(spreadsheet=SHEET_URL, data=updated_df)
-                        
-                        st.success(f"✅ Produit '{new_nom}' ajouté avec succès !")
-                        st.cache_data.clear() # On force le rechargement des données
+                        st.success(f"✅ Produit '{new_nom}' ajouté !")
+                        st.cache_data.clear() 
                     except Exception as e:
-                        st.error(f"Erreur d'écriture sur Google Sheets : {e}")
+                        st.error(f"Erreur d'écriture : {e}")
