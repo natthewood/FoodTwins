@@ -2,12 +2,9 @@ import streamlit as st
 import pandas as pd
 import difflib
 import re
-import json
-import base64
 import cv2
 import numpy as np
 import requests
-from io import BytesIO
 from PIL import Image
 from pyzbar.pyzbar import decode
 from streamlit_gsheets import GSheetsConnection
@@ -638,336 +635,6 @@ def analyze_label_with_ai(image: Image.Image) -> dict | None:
 
 
 # ---------------------------------------------------------------------------
-# COMPARAISON AVANCÉE — sans dépendance au code EMB
-# ---------------------------------------------------------------------------
-
-def extract_estampille(text: str) -> str | None:
-    """Extrait un code estampille sanitaire type 'FR 29.123.001 CE'."""
-    pattern = r'\b[A-Z]{2}[\s\-]?\d{2,3}[\.\-]\d{3}[\.\-]\d{3}[\s\-]?CE\b'
-    match = re.search(pattern, str(text).upper())
-    return match.group(0).strip() if match else None
-
-
-def compare_ingredients_sim(ing1: str, ing2: str) -> dict:
-    """Calcule la similarité textuelle entre deux listes d'ingrédients."""
-    if not ing1 or not ing2:
-        return {"score": None, "confidence": "indéterminée", "detail": "Ingrédients manquants"}
-    ratio = difflib.SequenceMatcher(None, ing1.lower(), ing2.lower()).ratio()
-    pct = round(ratio * 100, 1)
-    confidence = "haute" if ratio > 0.85 else "moyenne" if ratio > 0.6 else "faible"
-    return {"score": pct, "confidence": confidence, "detail": f"Similarité des ingrédients : {pct}% ({confidence})"}
-
-
-@st.cache_data(ttl=3600)
-def search_off_by_estampille(estampille: str) -> list[dict]:
-    """Recherche les produits partageant la même estampille sur Open Food Facts."""
-    code_clean = re.sub(r'\s+', '-', estampille.strip().upper())
-    url = f"https://world.openfoodfacts.org/packager-code/{code_clean}.json"
-    try:
-        r = requests.get(url, timeout=8)
-        data = r.json()
-        products = data.get("products", [])[:8]
-        return [
-            {
-                "nom":   p.get("product_name_fr") or p.get("product_name", "?"),
-                "marque": p.get("brands", "?"),
-                "code":  p.get("code", ""),
-            }
-            for p in products
-        ]
-    except Exception:
-        return []
-
-
-def analyze_packaging_with_claude(image1_bytes: bytes, image2_bytes: bytes) -> dict:
-    """
-    Envoie deux photos d'emballages à Claude Vision pour comparaison.
-    Retourne un dict structuré avec le résultat de l'analyse.
-    """
-    try:
-        import anthropic as _anthropic
-        client = _anthropic.Anthropic(api_key=st.secrets.get("ANTHROPIC_API_KEY", ""))
-
-        img1_b64 = base64.standard_b64encode(image1_bytes).decode("utf-8")
-        img2_b64 = base64.standard_b64encode(image2_bytes).decode("utf-8")
-
-        prompt = (
-            "Tu es un expert en traçabilité alimentaire. Analyse ces deux photos d'emballages "
-            "et détermine s'ils proviennent de la même usine de fabrication.\n\n"
-            "Examine attentivement :\n"
-            "1. Estampille sanitaire : code ovale type 'FR 29.123.001 CE'\n"
-            "2. Codes de lot : police d'impression jet d'encre, formatage, position\n"
-            "3. Détails physiques : stries sous pots, forme du goulot, picots sous barquettes\n"
-            "4. Mentions légales : 'Fabriqué à [Ville]' ou noms de filiales en petits caractères\n"
-            "5. Style d'impression des dates d'expiration\n\n"
-            "Réponds UNIQUEMENT en JSON valide, sans balises markdown :\n"
-            "{"
-            '"meme_usine_probable": true/false/null, '
-            '"niveau_confiance": "haute|moyenne|faible|indéterminée", '
-            '"indices_trouves": ["..."], '
-            '"estampille_1": "code ou null", '
-            '"estampille_2": "code ou null", '
-            '"explication": "résumé en 2-3 phrases"'
-            "}"
-        )
-
-        response = client.messages.create(
-            model="claude-opus-4-5",
-            max_tokens=800,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": img1_b64}},
-                    {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": img2_b64}},
-                    {"type": "text",  "text": prompt},
-                ],
-            }],
-        )
-        raw = response.content[0].text.strip()
-        clean = raw.replace("```json", "").replace("```", "").strip()
-        return json.loads(clean)
-    except Exception as e:
-        return {
-            "meme_usine_probable": None,
-            "niveau_confiance": "indéterminée",
-            "indices_trouves": [],
-            "estampille_1": None,
-            "estampille_2": None,
-            "explication": f"Erreur lors de l'analyse : {e}",
-        }
-
-
-def render_advanced_comparison(df: pd.DataFrame) -> None:
-    """
-    Onglet de comparaison avancée : photo IA + estampille + ingrédients + lieu.
-    Accessible depuis la page principale via un expander discret.
-    """
-    st.markdown(
-        '<div style="background:#1A1D24;border:1px solid #2A2D35;border-radius:16px;'
-        'padding:1.5rem;margin-top:1.5rem">',
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        '<div style="font-family:Space Grotesk,sans-serif;font-size:1.2rem;font-weight:700;'
-        'margin-bottom:0.2rem">🔬 Comparaison avancée</div>'
-        '<div style="color:#6B7280;font-size:0.82rem;margin-bottom:1.2rem">'
-        'Identifie la même usine sans dépendre du code EMB — '
-        'combine photo IA, estampille sanitaire, ingrédients et lieu déclaré.</div>',
-        unsafe_allow_html=True,
-    )
-
-    # ── Sélection des deux produits ──────────────────────────────────────────
-    col1, col2 = st.columns(2)
-    prod_a = prod_b = None
-
-    with col1:
-        st.markdown('<div style="color:#22C55E;font-size:0.75rem;font-weight:600;'
-                    'text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">'
-                    'PRODUIT A</div>', unsafe_allow_html=True)
-        query_a = st.text_input("Nom ou marque A", key="adv_query_a", placeholder="Ex : Activia")
-        photo_a = st.file_uploader("📷 Photo emballage A (optionnel)", type=["jpg","jpeg","png"], key="adv_photo_a")
-        if query_a:
-            mask = (df["nom"].str.contains(query_a, case=False, na=False)
-                    | df["marque"].str.contains(query_a, case=False, na=False))
-            matches = df[mask]
-            if not matches.empty:
-                choice = st.selectbox("Sélectionner", matches.apply(
-                    lambda r: f"{safe_str(r['marque'])} — {safe_str(r['nom'])}", axis=1
-                ).tolist(), key="adv_sel_a")
-                idx = matches.apply(lambda r: f"{safe_str(r['marque'])} — {safe_str(r['nom'])}", axis=1).tolist().index(choice)
-                prod_a = matches.iloc[idx]
-
-    with col2:
-        st.markdown('<div style="color:#22C55E;font-size:0.75rem;font-weight:600;'
-                    'text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">'
-                    'PRODUIT B</div>', unsafe_allow_html=True)
-        query_b = st.text_input("Nom ou marque B", key="adv_query_b", placeholder="Ex : Danio")
-        photo_b = st.file_uploader("📷 Photo emballage B (optionnel)", type=["jpg","jpeg","png"], key="adv_photo_b")
-        if query_b:
-            mask = (df["nom"].str.contains(query_b, case=False, na=False)
-                    | df["marque"].str.contains(query_b, case=False, na=False))
-            matches = df[mask]
-            if not matches.empty:
-                choice = st.selectbox("Sélectionner", matches.apply(
-                    lambda r: f"{safe_str(r['marque'])} — {safe_str(r['nom'])}", axis=1
-                ).tolist(), key="adv_sel_b")
-                idx = matches.apply(lambda r: f"{safe_str(r['marque'])} — {safe_str(r['nom'])}", axis=1).tolist().index(choice)
-                prod_b = matches.iloc[idx]
-
-    if not st.button("🔍 Lancer l'analyse complète", key="adv_run", type="primary"):
-        st.markdown('</div>', unsafe_allow_html=True)
-        return
-
-    results: dict[str, bool | None] = {}
-    st.markdown('<hr style="border:none;border-top:1px solid #1F2937;margin:1rem 0">', unsafe_allow_html=True)
-
-    # ── Méthode 1 : Code EMB ─────────────────────────────────────────────────
-    with st.expander("1️⃣ Code EMB (base de données)", expanded=True):
-        if prod_a is not None and prod_b is not None:
-            emb_a = safe_str(prod_a.get("emb", ""))
-            emb_b = safe_str(prod_b.get("emb", ""))
-            if emb_a and emb_b:
-                match_emb = emb_a.strip() == emb_b.strip()
-                if match_emb:
-                    st.success(f"✅ Même code EMB : **{emb_a}**")
-                else:
-                    st.error(f"❌ EMB différents : **{emb_a}** ≠ **{emb_b}**")
-                results["emb"] = match_emb
-            else:
-                st.warning("⚠️ Code EMB absent — passage aux méthodes alternatives.")
-                results["emb"] = None
-        else:
-            st.info("Sélectionnez deux produits dans la base pour activer cette méthode.")
-
-    # ── Méthode 2 : Analyse visuelle IA ─────────────────────────────────────
-    with st.expander("2️⃣ Analyse photo IA — estampille, lot, contenant", expanded=True):
-        if photo_a and photo_b:
-            anthropic_key = st.secrets.get("ANTHROPIC_API_KEY", "")
-            if not anthropic_key:
-                st.warning("⚠️ Clé ANTHROPIC_API_KEY absente dans les secrets Streamlit.")
-            else:
-                with st.spinner("🤖 Claude analyse les deux emballages…"):
-                    bytes_a = photo_a.read()
-                    bytes_b = photo_b.read()
-                    ai = analyze_packaging_with_claude(bytes_a, bytes_b)
-
-                conf = ai.get("niveau_confiance", "indéterminée")
-                probable = ai.get("meme_usine_probable")
-
-                if probable is True:
-                    st.success(f"✅ Même usine probable — confiance **{conf}**")
-                    results["vision_ia"] = True
-                elif probable is False:
-                    st.error(f"❌ Usines différentes — confiance **{conf}**")
-                    results["vision_ia"] = False
-                else:
-                    st.warning(f"❓ Résultat indéterminé — confiance **{conf}**")
-                    results["vision_ia"] = None
-
-                explication = ai.get("explication", "")
-                if explication:
-                    st.markdown(
-                        f'<p style="font-size:0.85rem;color:#D1D5DB;margin-top:8px">{explication}</p>',
-                        unsafe_allow_html=True,
-                    )
-
-                indices = ai.get("indices_trouves", [])
-                if indices:
-                    st.markdown(
-                        '<div style="font-size:0.8rem;color:#9CA3AF;margin-top:6px">'
-                        + "".join(f"• {i}<br>" for i in indices)
-                        + '</div>',
-                        unsafe_allow_html=True,
-                    )
-
-                # Estampilles détectées → recherche OFF
-                est1 = ai.get("estampille_1")
-                est2 = ai.get("estampille_2")
-                if est1 or est2:
-                    st.markdown(
-                        f'<div style="background:#0D0F14;border:1px solid #374151;border-radius:8px;'
-                        f'padding:8px 14px;font-size:0.82rem;color:#9CA3AF;margin-top:10px">'
-                        f'🔖 Estampilles lues : <strong style="color:#F8FAFC">{est1 or "—"}</strong>'
-                        f' / <strong style="color:#F8FAFC">{est2 or "—"}</strong></div>',
-                        unsafe_allow_html=True,
-                    )
-                    if est1 and est1 == est2:
-                        off_products = search_off_by_estampille(est1)
-                        if off_products:
-                            st.markdown(
-                                '<div style="font-size:0.78rem;color:#6B7280;margin-top:8px">'
-                                f'Autres produits de cette usine sur Open Food Facts ({est1}) :</div>',
-                                unsafe_allow_html=True,
-                            )
-                            st.dataframe(
-                                pd.DataFrame(off_products),
-                                use_container_width=True,
-                                hide_index=True,
-                            )
-        else:
-            st.info("Uploadez les photos des deux emballages pour activer l'analyse IA.")
-
-    # ── Méthode 3 : Similarité ingrédients ───────────────────────────────────
-    with st.expander("3️⃣ Similarité des ingrédients", expanded=True):
-        if prod_a is not None and prod_b is not None:
-            res_ing = compare_ingredients_sim(
-                safe_str(prod_a.get("ingredients", "")),
-                safe_str(prod_b.get("ingredients", "")),
-            )
-            score = res_ing.get("score")
-            if score is not None:
-                color = "#22C55E" if score > 85 else "#F59E0B" if score > 60 else "#F87171"
-                st.markdown(
-                    f'<div style="font-size:0.9rem;margin-bottom:6px">'
-                    f'Similarité : <strong style="color:{color}">{score}%</strong>'
-                    f' — confiance {res_ing["confidence"]}</div>',
-                    unsafe_allow_html=True,
-                )
-                st.progress(int(score) / 100)
-                results["ingredients"] = score > 75
-            else:
-                st.warning(res_ing["detail"])
-        else:
-            st.info("Sélectionnez deux produits dans la base pour cette méthode.")
-
-    # ── Méthode 4 : Lieu de fabrication déclaré ──────────────────────────────
-    with st.expander("4️⃣ Lieu de fabrication déclaré", expanded=True):
-        if prod_a is not None and prod_b is not None:
-            lieu_a = safe_str(prod_a.get("usine_lieu", ""))
-            lieu_b = safe_str(prod_b.get("usine_lieu", ""))
-            if lieu_a and lieu_b:
-                if lieu_a.strip().lower() == lieu_b.strip().lower():
-                    st.success(f"✅ Même lieu : **{lieu_a}**")
-                    results["lieu"] = True
-                else:
-                    sim_lieu = difflib.SequenceMatcher(None, lieu_a.lower(), lieu_b.lower()).ratio()
-                    if sim_lieu > 0.7:
-                        st.warning(f"⚠️ Lieux similaires : **{lieu_a}** / **{lieu_b}** ({round(sim_lieu*100)}%)")
-                        results["lieu"] = None
-                    else:
-                        st.error(f"❌ Lieux différents : **{lieu_a}** ≠ **{lieu_b}**")
-                        results["lieu"] = False
-            else:
-                st.info("Lieu de fabrication non renseigné dans la base pour ces produits.")
-
-    # ── Synthèse finale ───────────────────────────────────────────────────────
-    st.markdown('<hr style="border:none;border-top:1px solid #1F2937;margin:1rem 0">', unsafe_allow_html=True)
-    active = {k: v for k, v in results.items() if v is not None}
-    votes_oui = sum(1 for v in active.values() if v is True)
-    votes_non = sum(1 for v in active.values() if v is False)
-    total = len(active)
-
-    if total == 0:
-        st.info("ℹ️ Aucune méthode applicable. Ajoutez des photos ou sélectionnez des produits dans la base.")
-    else:
-        if votes_oui > votes_non:
-            verdict_color = "#22C55E"
-            verdict_icon  = "✅"
-            verdict_txt   = "Même usine probable"
-        elif votes_non > votes_oui:
-            verdict_color = "#F87171"
-            verdict_icon  = "❌"
-            verdict_txt   = "Usines probablement différentes"
-        else:
-            verdict_color = "#F59E0B"
-            verdict_icon  = "❓"
-            verdict_txt   = "Résultat ambigu"
-
-        st.markdown(
-            f'<div style="background:#0D0F14;border:1px solid {verdict_color}33;border-radius:12px;'
-            f'padding:1rem 1.4rem;margin-top:0.5rem">'
-            f'<div style="font-family:Space Grotesk,sans-serif;font-size:1.1rem;font-weight:700;'
-            f'color:{verdict_color}">{verdict_icon} {verdict_txt}</div>'
-            f'<div style="color:#6B7280;font-size:0.82rem;margin-top:4px">'
-            f'{votes_oui} méthode(s) convergent · {votes_non} divergent(s) · sur {total} appliquée(s)</div>'
-            f'</div>',
-            unsafe_allow_html=True,
-        )
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-
-# ---------------------------------------------------------------------------
 # BADGES
 # ---------------------------------------------------------------------------
 
@@ -1242,7 +909,7 @@ def display_add_form(barcode: str, df: pd.DataFrame) -> None:
     with c1:
         new_nom    = st.text_input("Nom du produit *",  value=defaults["nom"])
         new_marque = st.text_input("Marque *",          value=defaults["marque"])
-        new_emb    = st.text_input("Code usine EMB (optionnel)",  value=defaults["emb"])
+        new_emb    = st.text_input("Code usine EMB *",  value=defaults["emb"])
         new_lieu   = st.text_input("Lieu de fabrication", value=defaults.get("usine_lieu",""))
         new_img    = st.text_input("URL image",         value=defaults.get("image_url",""))
     with c2:
@@ -1283,7 +950,7 @@ def display_add_form(barcode: str, df: pd.DataFrame) -> None:
         errors = []
         if not new_nom.strip():    errors.append("Le nom du produit est obligatoire.")
         if not new_marque.strip(): errors.append("La marque est obligatoire.")
-        # EMB est facultatif — la comparaison avancée peut s'en passer
+        if not new_emb.strip():    errors.append("Le code usine EMB est obligatoire.")
 
         if errors:
             for e in errors:
@@ -1363,9 +1030,6 @@ def main() -> None:
             '</div>',
             unsafe_allow_html=True,
         )
-        st.markdown('<hr style="border:none;border-top:1px solid #1F2937;margin:1rem 0">', unsafe_allow_html=True)
-        with st.expander("🔬 Comparaison avancée — sans code-barres", expanded=False):
-            render_advanced_comparison(df)
         return
 
     # ── Recherche dans la base ─────────────────────────────────────────────
@@ -1389,11 +1053,6 @@ def main() -> None:
             '</div>',
             unsafe_allow_html=True,
         )
-
-    # ── Comparaison avancée (photo + estampille + ingrédients) ────────────
-    st.markdown('<hr style="border:none;border-top:1px solid #1F2937;margin:2rem 0">', unsafe_allow_html=True)
-    with st.expander("🔬 Comparaison avancée — sans code EMB", expanded=False):
-        render_advanced_comparison(df)
 
 
 if __name__ == "__main__":
