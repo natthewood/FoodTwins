@@ -19,55 +19,8 @@ SHEET_URL = "https://docs.google.com/spreadsheets/d/13OLqRmOHjWcaJoHsgHXexOXYiU3
 REQUIRED_COLUMNS = {
     "code", "nom", "marque", "emb", "ingredients",
     "nutriscore", "nova", "sucre", "sel", "energie_100g",
-    "image_url", "usine_lieu", "categorie",
+    "image_url", "usine_lieu",
 }
-
-# Catégories alimentaires standard (hiérarchie Open Food Facts simplifiée)
-CATEGORIES = [
-    "",
-    # Produits laitiers
-    "Yaourts et desserts lactés",
-    "Fromages",
-    "Laits et boissons lactées",
-    "Crèmes et beurres",
-    # Charcuterie & viandes
-    "Charcuterie",
-    "Viandes fraîches",
-    "Plats cuisinés à base de viande",
-    # Poissons & fruits de mer
-    "Poissons et fruits de mer",
-    "Conserves de poisson",
-    # Épicerie salée
-    "Pâtes, riz et céréales",
-    "Soupes et bouillons",
-    "Sauces et condiments",
-    "Conserves et légumes en bocaux",
-    "Snacks salés et chips",
-    "Plats cuisinés",
-    # Épicerie sucrée
-    "Biscuits et gâteaux",
-    "Chocolats et confiseries",
-    "Céréales de petit-déjeuner",
-    "Confitures et pâtes à tartiner",
-    "Glaces et sorbets",
-    # Boissons
-    "Eaux et boissons plates",
-    "Jus de fruits et nectars",
-    "Sodas et boissons sucrées",
-    "Boissons chaudes (café, thé…)",
-    "Boissons alcoolisées",
-    # Fruits, légumes, végétal
-    "Fruits frais",
-    "Légumes frais",
-    "Fruits secs et oléagineux",
-    "Produits à base de soja et alternatives végétales",
-    # Boulangerie
-    "Pains et viennoiseries",
-    # Surgelés
-    "Surgelés",
-    # Autres
-    "Autres",
-]
 
 NUTRI_SCORES = ["A", "B", "C", "D", "E"]
 
@@ -191,7 +144,6 @@ h1, h2, h3, .display {
 }
 .badge-vegan   { background: #064E3B; color: #6EE7B7; border: 1px solid #059669; }
 .badge-pork    { background: #7F1D1D; color: #FCA5A5; border: 1px solid #DC2626; }
-.badge-cat     { background: #1E3A5F; color: #93C5FD; border: 1px solid #2563EB; }
 
 /* ── Stat boxes ── */
 .stats-row {
@@ -432,60 +384,6 @@ def scan_barcode(image: Image.Image) -> str | None:
 # OPEN FOOD FACTS — enrichissement automatique
 # ---------------------------------------------------------------------------
 
-def _map_off_category(off_categories_str: str) -> str:
-    """
-    Mappe les catégories Open Food Facts (hiérarchiques, en anglais/fr) vers
-    nos catégories locales standardisées. Retourne "" si aucune correspondance.
-    """
-    if not off_categories_str:
-        return ""
-    raw = off_categories_str.lower()
-
-    mapping = [
-        (["yogurt", "yaourt", "dessert lacté", "fromage blanc", "faisselle"], "Yaourts et desserts lactés"),
-        (["cheese", "fromage"],                                                "Fromages"),
-        (["milk", "lait", "boisson lactée"],                                   "Laits et boissons lactées"),
-        (["cream", "crème", "butter", "beurre"],                               "Crèmes et beurres"),
-        (["charcuterie", "sausage", "saucisse", "jambon", "ham", "pâté",
-          "rillettes", "salami", "chorizo"],                                   "Charcuterie"),
-        (["fresh meat", "viande fraîche", "beef", "chicken", "pork",
-          "poultry", "volaille"],                                              "Viandes fraîches"),
-        (["fish", "poisson", "seafood", "fruits de mer", "shellfish"],         "Poissons et fruits de mer"),
-        (["canned fish", "conserve de poisson", "tuna", "thon", "sardine"],    "Conserves de poisson"),
-        (["pasta", "pâtes", "rice", "riz", "grain", "céréale", "noodle"],      "Pâtes, riz et céréales"),
-        (["soup", "soupe", "bouillon", "broth"],                               "Soupes et bouillons"),
-        (["sauce", "condiment", "vinegar", "vinaigre", "mustard", "moutarde",
-          "ketchup", "mayonnaise"],                                            "Sauces et condiments"),
-        (["canned vegetable", "conserve", "legume en bocal"],                  "Conserves et légumes en bocaux"),
-        (["chip", "crisp", "snack salé", "popcorn", "crackers"],               "Snacks salés et chips"),
-        (["ready meal", "plat cuisiné", "prepared meal"],                      "Plats cuisinés"),
-        (["biscuit", "cookie", "cake", "gâteau", "pastry", "pâtisserie",
-          "wafer", "brownie"],                                                 "Biscuits et gâteaux"),
-        (["chocolate", "chocolat", "candy", "confiserie", "bonbon", "caramel"],"Chocolats et confiseries"),
-        (["breakfast cereal", "céréale petit", "muesli", "granola"],           "Céréales de petit-déjeuner"),
-        (["jam", "confiture", "spread", "pâte à tartiner", "hazelnut spread"], "Confitures et pâtes à tartiner"),
-        (["ice cream", "glace", "sorbet", "frozen dessert"],                   "Glaces et sorbets"),
-        (["water", "eau", "spring water"],                                     "Eaux et boissons plates"),
-        (["juice", "jus", "nectar", "smoothie"],                               "Jus de fruits et nectars"),
-        (["soda", "cola", "lemonade", "energy drink", "boisson sucrée"],       "Sodas et boissons sucrées"),
-        (["coffee", "café", "tea", "thé", "herbal", "infusion"],               "Boissons chaudes (café, thé…)"),
-        (["beer", "bière", "wine", "vin", "alcohol", "alcool", "spirit",
-          "liqueur", "champagne"],                                             "Boissons alcoolisées"),
-        (["fresh fruit", "fruit frais"],                                       "Fruits frais"),
-        (["fresh vegetable", "légume frais"],                                  "Légumes frais"),
-        (["dried fruit", "fruit sec", "nut", "noix", "almond", "amande",
-          "cashew", "peanut"],                                                 "Fruits secs et oléagineux"),
-        (["soy", "soja", "tofu", "vegan", "plant-based", "vegetal"],          "Produits à base de soja et alternatives végétales"),
-        (["bread", "pain", "viennoiserie", "croissant", "brioche", "bun"],     "Pains et viennoiseries"),
-        (["frozen", "surgelé"],                                                "Surgelés"),
-    ]
-
-    for keywords, label in mapping:
-        if any(kw in raw for kw in keywords):
-            return label
-    return ""
-
-
 @st.cache_data(ttl=3600)
 def fetch_from_off(barcode: str) -> dict | None:
     """
@@ -519,19 +417,6 @@ def fetch_from_off(barcode: str) -> dict | None:
 
         emb_codes = p.get("emb_codes", "")
 
-        # Catégorie : on essaie d'abord la version fr, puis en
-        off_cat_str = (
-            p.get("categories_hierarchy", [])
-            or p.get("categories_tags", [])
-            or []
-        )
-        # Convertit la liste en string pour le mapping
-        cat_raw = ", ".join(off_cat_str) if isinstance(off_cat_str, list) else str(off_cat_str)
-        # Fallback sur le champ texte
-        if not cat_raw:
-            cat_raw = p.get("categories", "")
-        categorie = _map_off_category(cat_raw)
-
         return {
             "nom":          p.get("product_name_fr") or p.get("product_name", ""),
             "marque":       p.get("brands", ""),
@@ -544,7 +429,6 @@ def fetch_from_off(barcode: str) -> dict | None:
             "energie_100g": safe_float(nutriments.get("energy-kcal_100g", 0)),
             "image_url":    image_url,
             "usine_lieu":   p.get("manufacturing_places", ""),
-            "categorie":    categorie,
         }
     except Exception:
         return None
@@ -655,47 +539,22 @@ def get_badges_html(ingredients: str) -> str:
 # ---------------------------------------------------------------------------
 
 def find_clones(df: pd.DataFrame, product: pd.Series, search_code: str) -> pd.DataFrame:
-    """
-    Cherche des alternatives dans la même catégorie ET/OU la même usine.
-    Stratégie par priorité :
-      1. Même catégorie + même usine (EMB)  → double critère fort
-      2. Même catégorie seule               → toutes marques confondues
-      3. Même usine + nom similaire          → fallback si catégorie vide
-    Tri final : similarité d'ingrédients, avec bonus +10 pts pour même usine.
-    """
-    nom       = safe_str(product["nom"])
-    emb       = safe_str(product["emb"])
-    categorie = safe_str(product.get("categorie", ""))
-    ref_ing   = safe_str(product["ingredients"])
-
-    base = df[df["code"] != search_code].copy()
-
-    if categorie:
-        same_cat_emb = base[(base["categorie"] == categorie) & (base["emb"] == emb)]
-        same_cat     = base[base["categorie"] == categorie]
-        clones = pd.concat([same_cat_emb, same_cat]).drop_duplicates(subset="code")
-    else:
-        # Fallback : même usine + nom similaire
-        mots = [m for m in nom.split() if len(m) > 3]
-        if not mots:
-            return pd.DataFrame()
-        pattern = "|".join(re.escape(m) for m in mots[:2])
-        clones = base[
-            (base["emb"] == emb)
-            & (base["nom"].str.contains(pattern, case=False, na=False, regex=True))
-        ].copy()
-
-    if clones.empty:
+    nom = safe_str(product["nom"])
+    emb = safe_str(product["emb"])
+    mots = [m for m in nom.split() if len(m) > 3]
+    if not mots:
         return pd.DataFrame()
-
-    clones = clones.copy()
+    pattern = "|".join(re.escape(m) for m in mots[:2])
+    clones = df[
+        (df["emb"] == emb)
+        & (df["nom"].str.contains(pattern, case=False, na=False, regex=True))
+        & (df["code"] != search_code)
+    ].copy()
+    ref_ing = safe_str(product["ingredients"])
     clones["_similarity"] = clones["ingredients"].apply(
         lambda x: int(difflib.SequenceMatcher(None, ref_ing, safe_str(x)).ratio() * 100)
     )
-    clones["_score"] = clones["_similarity"] + clones["emb"].apply(
-        lambda e: 10 if e == emb else 0
-    )
-    return clones.sort_values("_score", ascending=False).drop(columns=["_score"])
+    return clones.sort_values("_similarity", ascending=False)
 
 
 # ---------------------------------------------------------------------------
@@ -714,7 +573,6 @@ def display_product(p: pd.Series) -> None:
     image_url  = safe_str(p["image_url"])
     brand      = safe_str(p["marque"], "Marque inconnue")
     name       = safe_str(p["nom"], "Produit sans nom")
-    categorie  = safe_str(p.get("categorie", ""))
 
     st.markdown('<div class="product-card">', unsafe_allow_html=True)
     col1, col2 = st.columns([1, 2.5])
@@ -734,13 +592,10 @@ def display_product(p: pd.Series) -> None:
         st.markdown(f'<div class="product-brand">{brand}</div>', unsafe_allow_html=True)
         st.markdown(f'<div class="product-name">{name}</div>', unsafe_allow_html=True)
 
-        cat_badge = (
-            f'<span class="badge badge-cat">📂 {categorie}</span>' if categorie else ""
-        )
         st.markdown(
             f'<span class="badge nutri-{ns_class}">Nutri-Score {ns_class or "?"}</span>'
             f'<span class="nova-badge">NOVA {nova_label}</span>'
-            f"{badges}{cat_badge}",
+            f"{badges}",
             unsafe_allow_html=True,
         )
 
@@ -770,11 +625,9 @@ def display_product(p: pd.Series) -> None:
 
 def display_clones(clones: pd.DataFrame, ref_product: pd.Series) -> None:
     nom = safe_str(ref_product["nom"])
-    cat = safe_str(ref_product.get("categorie", ""))
-    cat_info = f" · <span style='color:#93C5FD;font-size:0.82rem'>📂 {cat}</span>" if cat else ""
     st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
     st.markdown(
-        f'<div class="clone-header">💡 {len(clones)} alternative(s) pour «&nbsp;{nom}&nbsp;»{cat_info}</div>',
+        f'<div class="clone-header">💡 {len(clones)} alternative(s) pour «&nbsp;{nom}&nbsp;»</div>',
         unsafe_allow_html=True,
     )
 
@@ -862,7 +715,7 @@ def display_add_form(barcode: str, df: pd.DataFrame) -> None:
     defaults = {
         "nom": "", "marque": "", "emb": "", "ingredients": "",
         "nutriscore": "A", "nova": 1, "sucre": 0.0, "sel": 0.0,
-        "energie_100g": 0.0, "image_url": "", "usine_lieu": "", "categorie": "",
+        "energie_100g": 0.0, "image_url": "", "usine_lieu": "",
     }
 
     if off_data:
@@ -913,27 +766,6 @@ def display_add_form(barcode: str, df: pd.DataFrame) -> None:
         new_lieu   = st.text_input("Lieu de fabrication", value=defaults.get("usine_lieu",""))
         new_img    = st.text_input("URL image",         value=defaults.get("image_url",""))
     with c2:
-        # Catégorie : sélection dans la liste standard ou saisie libre
-        cat_default = defaults.get("categorie", "")
-        if cat_default and cat_default not in CATEGORIES:
-            cat_options = CATEGORIES + [cat_default]
-        else:
-            cat_options = CATEGORIES
-        cat_index = cat_options.index(cat_default) if cat_default in cat_options else 0
-        new_cat = st.selectbox(
-            "Catégorie *",
-            options=cat_options,
-            index=cat_index,
-            help="La catégorie sert à trouver des alternatives comparables.",
-        )
-        # Saisie libre si "Autres" ou catégorie vide
-        if new_cat in ("", "Autres"):
-            new_cat_libre = st.text_input(
-                "Catégorie personnalisée (optionnel)", value=cat_default if cat_default not in CATEGORIES[:-1] else ""
-            )
-            if new_cat_libre.strip():
-                new_cat = new_cat_libre.strip()
-
         nutri_index = NUTRI_SCORES.index(defaults["nutriscore"]) if defaults["nutriscore"] in NUTRI_SCORES else 0
         new_nutri  = st.selectbox("Nutri-Score", NUTRI_SCORES, index=nutri_index)
         nova_opts  = [1, 2, 3, 4]
@@ -965,7 +797,6 @@ def display_add_form(barcode: str, df: pd.DataFrame) -> None:
                 "energie_100g": new_kcal,
                 "image_url": new_img.strip(),
                 "usine_lieu": new_lieu.strip(),
-                "categorie": new_cat.strip(),
             }
             try:
                 conn = st.connection("gsheets", type=GSheetsConnection)
